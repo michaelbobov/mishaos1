@@ -27,20 +27,18 @@ class ProgramManager {
             // Don't deselect if clicking on an icon itself or its menu
             if (e.target.closest('.desktop-icon') || 
                 e.target.closest('.minimized-program-manager') ||
-                e.target.closest('#desktop-icon-menu')) {
+                e.target.closest('#desktop-icon-menu') ||
+                e.target.closest('.taskbar-item') ||
+                e.target.closest('#taskbar-item-menu')) {
                 return;
             }
             
-            // Hide context menu if clicking elsewhere
+            // Hide context menus if clicking elsewhere
             this.hideDesktopIconMenu();
+            this.hideTaskbarItemMenu();
             
-            // If an icon is in move mode, clicking elsewhere should place it (exit move mode)
-            const iconInMoveMode = document.querySelector('.desktop-icon[data-move-mode="true"], .minimized-program-manager[data-move-mode="true"]');
-            if (iconInMoveMode) {
-                delete iconInMoveMode.dataset.moveMode;
-                iconInMoveMode.style.cursor = 'pointer';
-                iconInMoveMode.classList.remove('selected');
-            }
+            // Deselect taskbar items
+            document.querySelectorAll('.taskbar-item').forEach(item => item.classList.remove('selected'));
             
             // Deselect when clicking on windows, taskbar, status bar, or desktop
             if (e.target.closest('.window') || 
@@ -232,10 +230,25 @@ class ProgramManager {
 
         if (aiApp.style.display === 'none' || !aiApp.style.display) {
             aiApp.style.display = 'flex';
-            aiApp.style.left = `${150 + Math.random() * 50}px`;
-            aiApp.style.top = `${60 + Math.random() * 50}px`;
-            aiApp.style.width = '500px';
-            aiApp.style.height = '400px';
+            
+            // Position flush with bottom-right corner, above status bar
+            const screenContent = document.querySelector('.screen-content');
+            const statusBar = document.querySelector('.desktop-status-bar');
+            const offset = 8; // Small padding from edges
+            const windowWidth = 500;
+            const windowHeight = 400;
+            
+            // Calculate position so bottom-right corner is flush with viewport, above status bar
+            const screenRect = screenContent.getBoundingClientRect();
+            const statusBarHeight = statusBar ? statusBar.offsetHeight : 0;
+            const left = screenRect.width - windowWidth - offset;
+            const top = screenRect.height - windowHeight - statusBarHeight - offset;
+            
+            aiApp.style.left = `${left}px`;
+            aiApp.style.top = `${top}px`;
+            aiApp.style.width = `${windowWidth}px`;
+            aiApp.style.height = `${windowHeight}px`;
+            
             this.setupWindowDrag(aiApp);
             this.setupSingleWindowControls(aiApp);
             
@@ -408,6 +421,7 @@ class ProgramManager {
             });
             // Double click to restore
             minimizedIcon.addEventListener('dblclick', () => {
+                this.hideDesktopIconMenu();
                 this.restoreProgramManager();
             });
             const desktopIcons = document.querySelector('.desktop-icons-area');
@@ -456,13 +470,28 @@ class ProgramManager {
             <div class="taskbar-item-label">${title}</div>
         `;
         
-        // Click to restore
-        taskbarItem.addEventListener('click', () => {
-            this.restoreFromTaskbar(windowId, window);
+        // Single click to select and show context menu
+        let clickTimeout;
+        taskbarItem.addEventListener('click', (e) => {
+            // Clear any pending timeout
+            clearTimeout(clickTimeout);
+            
+            // Wait a bit to see if it's a double-click
+            clickTimeout = setTimeout(() => {
+                // Deselect all other taskbar items
+                document.querySelectorAll('.taskbar-item').forEach(item => item.classList.remove('selected'));
+                taskbarItem.classList.add('selected');
+                
+                // Show context menu
+                this.showTaskbarItemMenu(taskbarItem, windowId, window, title);
+            }, 200);
+            
+            e.stopPropagation();
         });
         
         // Double click to restore
         taskbarItem.addEventListener('dblclick', () => {
+            this.hideTaskbarItemMenu();
             this.restoreFromTaskbar(windowId, window);
         });
         
@@ -526,6 +555,8 @@ class ProgramManager {
                 const app = icon.dataset.app;
                 if (app === 'minesweeper') {
                     this.openMinesweeper();
+                } else if (app === 'skifree') {
+                    this.openSkiFree();
                 }
             });
         });
@@ -784,6 +815,691 @@ class ProgramManager {
         renderBoard();
     }
 
+    openSkiFree() {
+        const skifreeApp = document.getElementById('skifree-app');
+        if (!skifreeApp) return;
+
+        if (skifreeApp.style.display === 'none' || !skifreeApp.style.display) {
+            skifreeApp.style.display = 'flex';
+            skifreeApp.style.left = `${80 + Math.random() * 80}px`;
+            skifreeApp.style.top = `${40 + Math.random() * 40}px`;
+            skifreeApp.style.width = '420px';
+            skifreeApp.style.height = '430px';
+            this.setupWindowDrag(skifreeApp);
+            this.setupSingleWindowControls(skifreeApp);
+            
+            // Remove from taskbar if it was there
+            this.removeFromTaskbar('skifree-app');
+            
+            // Initialize game if not already initialized
+            if (!skifreeApp.dataset.initialized) {
+                this.initSkiFree();
+                skifreeApp.dataset.initialized = 'true';
+            }
+        }
+        
+        // Always bring to front when opening/clicking
+        this.focusWindow(skifreeApp);
+    }
+
+    initSkiFree() {
+        const canvas = document.getElementById('skifree-canvas');
+        const ctx = canvas.getContext('2d');
+        const distanceEl = document.getElementById('skifree-distance');
+        const speedEl = document.getElementById('skifree-speed');
+        const restartBtn = document.getElementById('skifree-restart');
+        
+        // Set fixed canvas dimensions (matches HTML attributes)
+        canvas.width = 400;
+        canvas.height = 350;
+        
+        // Load skier image
+        const skierImg = new Image();
+        skierImg.src = 'assets/skier.png';
+        let skierImageLoaded = false;
+        skierImg.onload = () => {
+            skierImageLoaded = true;
+        };
+        
+        // Game state
+        let gameRunning = false;
+        let gameOver = false;
+        let distance = 0;
+        let speed = 3;
+        let maxSpeed = 8;
+        let turboSpeed = 12;
+        let isTurbo = false;
+        let isJumping = false;
+        let jumpHeight = 0;
+        let jumpVelocity = 0;
+        
+        // Animation state
+        let isAnimating = false;
+        const startY = -30; // Start off-screen at top
+        const targetY = 200; // Lower position (~57% of 350) for more width
+        const animationSpeed = 3; // Pixels per frame (faster intro)
+        
+        // Player state
+        const player = {
+            x: 200, // Center of 400px canvas
+            y: startY, // Start at top for animation
+            width: 16,
+            height: 20,
+            direction: 0, // -1 left, 0 straight, 1 right
+            angle: 0
+        };
+        
+        // Obstacles
+        let obstacles = [];
+        const obstacleTypes = ['tree', 'rock', 'ramp', 'snowman'];
+        
+        // Yeti
+        let yeti = null;
+        let yetiAppeared = false;
+        const yetiDistance = 2000; // When yeti appears
+        
+        // Input
+        const keys = { left: false, right: false, down: false, fast: false, space: false };
+        
+        // Generate initial obstacles
+        function generateObstacle() {
+            const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+            const y = canvas.height + Math.random() * 100;
+            
+            // Spawn within V-line bounds at this Y position
+            const { vanishingPointY, vanishingPointX, bottomLeftX, bottomRightX, bottomY } = V_LINE_PARAMS;
+            const t = Math.max(0, (y - vanishingPointY) / (bottomY - vanishingPointY));
+            const leftBound = vanishingPointX + (bottomLeftX - vanishingPointX) * t;
+            const rightBound = vanishingPointX + (bottomRightX - vanishingPointX) * t;
+            
+            // Random X within V-line bounds (with small margin)
+            const margin = 20;
+            const x = (leftBound + margin) + Math.random() * (rightBound - leftBound - margin * 2);
+            
+            // Base dimensions (will be scaled when drawing)
+            const baseWidth = type === 'tree' ? 20 : type === 'rock' ? 24 : type === 'ramp' ? 30 : 18;
+            const baseHeight = type === 'tree' ? 30 : type === 'rock' ? 16 : type === 'ramp' ? 12 : 24;
+            
+            return {
+                x: x,
+                y: y,
+                type: type,
+                width: baseWidth,
+                height: baseHeight,
+                scale: getDistanceScale(y),
+                passed: false
+            };
+        }
+        
+        // Initialize obstacles
+        function initObstacles() {
+            obstacles = [];
+            for (let i = 0; i < 8; i++) {
+                // Start obstacles below the player (player is at Y=200)
+                const y = 220 + i * 50 + Math.random() * 30;
+                
+                // Calculate X within V-line bounds at this Y
+                const { vanishingPointY, vanishingPointX, bottomLeftX, bottomRightX, bottomY } = V_LINE_PARAMS;
+                const t = Math.max(0, (y - vanishingPointY) / (bottomY - vanishingPointY));
+                const leftBound = vanishingPointX + (bottomLeftX - vanishingPointX) * t;
+                const rightBound = vanishingPointX + (bottomRightX - vanishingPointX) * t;
+                const margin = 20;
+                const x = (leftBound + margin) + Math.random() * (rightBound - leftBound - margin * 2);
+                
+                const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                const baseWidth = type === 'tree' ? 20 : type === 'rock' ? 24 : type === 'ramp' ? 30 : 18;
+                const baseHeight = type === 'tree' ? 30 : type === 'rock' ? 16 : type === 'ramp' ? 12 : 24;
+                
+                obstacles.push({
+                    x: x,
+                    y: y,
+                    type: type,
+                    width: baseWidth,
+                    height: baseHeight,
+                    scale: getDistanceScale(y),
+                    passed: false
+                });
+            }
+        }
+        
+        // Draw skier
+        function drawSkier() {
+            ctx.save();
+            ctx.translate(player.x, player.y - jumpHeight);
+            
+            // Shadow when jumping
+            if (isJumping) {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(0, jumpHeight + 10, 8, 4, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Draw skier image
+            if (skierImageLoaded) {
+                const dir = player.direction;
+                // Scale down the image - make it slightly smaller
+                const scale = 0.045; // 4.5% of original size
+                const imgWidth = (skierImg.width || 32) * scale;
+                const imgHeight = (skierImg.height || 32) * scale;
+                
+                // Flip horizontally if going left (original faces right)
+                if (dir < 0) {
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(skierImg, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+                } else {
+                    ctx.drawImage(skierImg, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+                }
+            } else {
+                // Fallback drawing if image not loaded yet
+                const dir = player.direction;
+                ctx.fillStyle = '#0000AA';
+                ctx.fillRect(-4, -8, 8, 12);
+                ctx.fillStyle = '#FFD700';
+                ctx.fillRect(-3, -14, 6, 6);
+            }
+            
+            ctx.restore();
+        }
+        
+        // Draw tree
+        function drawTree(x, y, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            
+            // Trunk
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-3, 10, 6, 10);
+            
+            // Foliage (triangles)
+            ctx.fillStyle = '#228B22';
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(-12, 5);
+            ctx.lineTo(12, 5);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(0, -8);
+            ctx.lineTo(-10, 12);
+            ctx.lineTo(10, 12);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Draw rock
+        function drawRock(x, y, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            
+            ctx.fillStyle = '#696969';
+            ctx.beginPath();
+            ctx.ellipse(0, 4, 12, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#808080';
+            ctx.beginPath();
+            ctx.ellipse(-2, 2, 8, 5, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Draw ramp
+        function drawRamp(x, y, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            
+            ctx.fillStyle = '#DEB887';
+            ctx.beginPath();
+            ctx.moveTo(-15, 6);
+            ctx.lineTo(15, 6);
+            ctx.lineTo(10, -4);
+            ctx.lineTo(-10, -4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+        
+        // Draw snowman
+        function drawSnowman(x, y, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.strokeStyle = '#CCCCCC';
+            ctx.lineWidth = 1;
+            // Bottom
+            ctx.beginPath();
+            ctx.arc(0, 8, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Middle
+            ctx.beginPath();
+            ctx.arc(0, -2, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Head
+            ctx.beginPath();
+            ctx.arc(0, -10, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-2, -11, 2, 2);
+            ctx.fillRect(1, -11, 2, 2);
+            // Carrot nose
+            ctx.fillStyle = '#FFA500';
+            ctx.beginPath();
+            ctx.moveTo(0, -9);
+            ctx.lineTo(5, -8);
+            ctx.lineTo(0, -7);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Draw yeti
+        function drawYeti(x, y) {
+            // Body
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(x - 15, y - 20, 30, 35);
+            
+            // Head
+            ctx.fillRect(x - 10, y - 32, 20, 14);
+            
+            // Eyes (angry)
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(x - 6, y - 28, 4, 4);
+            ctx.fillRect(x + 2, y - 28, 4, 4);
+            
+            // Mouth
+            ctx.fillStyle = '#000';
+            ctx.fillRect(x - 5, y - 22, 10, 3);
+            
+            // Arms
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(x - 25, y - 15, 12, 8);
+            ctx.fillRect(x + 13, y - 15, 12, 8);
+            
+            // Legs
+            ctx.fillRect(x - 12, y + 15, 10, 10);
+            ctx.fillRect(x + 2, y + 15, 10, 10);
+            
+            // Claws
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x - 26, y - 14, 3, 6);
+            ctx.fillRect(x + 23, y - 14, 3, 6);
+        }
+        
+        // Draw obstacle
+        function drawObstacle(obs) {
+            switch(obs.type) {
+                case 'tree': drawTree(obs.x, obs.y, obs.scale); break;
+                case 'rock': drawRock(obs.x, obs.y, obs.scale); break;
+                case 'ramp': drawRamp(obs.x, obs.y, obs.scale); break;
+                case 'snowman': drawSnowman(obs.x, obs.y, obs.scale); break;
+            }
+        }
+        
+        // Check collision
+        function checkCollision(obs) {
+            if (isJumping && jumpHeight > 15) return false;
+            
+            const px = player.x;
+            const py = player.y;
+            const pw = player.width / 2;
+            const ph = player.height / 2;
+            
+            const ox = obs.x;
+            const oy = obs.y;
+            // Use scaled dimensions for collision (scale is updated in drawObstacle)
+            const scale = obs.scale || 1;
+            const ow = (obs.width * scale) / 2;
+            const oh = (obs.height * scale) / 2;
+            
+            return px - pw < ox + ow &&
+                   px + pw > ox - ow &&
+                   py - ph < oy + oh &&
+                   py + ph > oy - oh;
+        }
+        
+        // Draw crashed skier
+        function drawCrashedSkier() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(Math.PI / 2);
+            
+            // Body
+            ctx.fillStyle = '#0000AA';
+            ctx.fillRect(-6, -4, 12, 8);
+            
+            // Head
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(-12, -3, 6, 6);
+            
+            // Skis scattered
+            ctx.fillStyle = '#8B4513';
+            ctx.save();
+            ctx.rotate(0.5);
+            ctx.fillRect(8, -8, 4, 12);
+            ctx.restore();
+            ctx.save();
+            ctx.rotate(-0.3);
+            ctx.fillRect(10, 4, 4, 12);
+            ctx.restore();
+            
+            ctx.restore();
+        }
+        
+        // Draw eaten skier (by yeti)
+        function drawEatenSkier() {
+            ctx.fillStyle = '#FF0000';
+            ctx.font = '20px serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('💀', player.x, player.y);
+        }
+        
+        // V-line parameters (fixed coordinates for 400x350 canvas)
+        const V_LINE_PARAMS = {
+            vanishingPointY: 20,
+            vanishingPointX: 200,
+            bottomY: 350,
+            bottomLeftX: -120,
+            bottomRightX: 520
+        };
+        
+        // Get scale factor based on Y position (distance)
+        function getDistanceScale(y) {
+            const { vanishingPointY, bottomY } = V_LINE_PARAMS;
+            // Scale from 0.3 (far/small) to 1.0 (close/large)
+            const t = (y - vanishingPointY) / (bottomY - vanishingPointY);
+            return 0.3 + Math.max(0, Math.min(1, t)) * 0.7;
+        }
+        
+        // Get X bounds at a given Y position (within V-line)
+        function getXBoundsAtY(y) {
+            const { vanishingPointY, vanishingPointX, bottomLeftX, bottomRightX, bottomY } = V_LINE_PARAMS;
+            const t = Math.max(0, (y - vanishingPointY) / (bottomY - vanishingPointY));
+            const leftBound = vanishingPointX + (bottomLeftX - vanishingPointX) * t;
+            const rightBound = vanishingPointX + (bottomRightX - vanishingPointX) * t;
+            return { left: leftBound, right: rightBound };
+        }
+        
+        // Draw perspective V-line guide (for debugging - can be toggled)
+        const showPerspectiveGuide = true; // Set to true to show guide lines
+        
+        function drawPerspectiveGuide() {
+            if (!showPerspectiveGuide) return;
+            
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)'; // Semi-transparent red
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            const { vanishingPointY, vanishingPointX, bottomLeftX, bottomRightX, bottomY } = V_LINE_PARAMS;
+            
+            // Draw left line of V
+            ctx.moveTo(vanishingPointX, vanishingPointY);
+            ctx.lineTo(bottomLeftX, bottomY);
+            
+            // Draw right line of V
+            ctx.moveTo(vanishingPointX, vanishingPointY);
+            ctx.lineTo(bottomRightX, bottomY);
+            
+            ctx.stroke();
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            // Clear canvas (keep background visible through canvas)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw perspective guide V-line
+            drawPerspectiveGuide();
+            
+            // Draw snow texture (dots)
+            ctx.fillStyle = '#E8E8E8';
+            for (let i = 0; i < 50; i++) {
+                const sx = (i * 37 + distance * 0.5) % canvas.width;
+                const sy = (i * 23 + distance) % canvas.height;
+                ctx.fillRect(sx, sy, 2, 2);
+            }
+            
+            // Handle intro animation
+            if (isAnimating) {
+                player.y += animationSpeed;
+                if (player.y >= targetY) {
+                    player.y = targetY;
+                    isAnimating = false;
+                }
+                // Draw skier during animation
+                drawSkier();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            
+            if (!gameOver) {
+                // Update speed
+                const currentMaxSpeed = isTurbo ? turboSpeed : maxSpeed;
+                if (keys.down) {
+                    speed = Math.min(speed + 0.1, currentMaxSpeed);
+                } else if (isTurbo) {
+                    speed = Math.min(speed + 0.05, turboSpeed);
+                } else {
+                    speed = Math.max(3, speed - 0.02);
+                }
+                
+                // Update direction
+                if (keys.left) {
+                    player.direction = Math.max(-1, player.direction - 0.1);
+                } else if (keys.right) {
+                    player.direction = Math.min(1, player.direction + 0.1);
+                } else {
+                    player.direction *= 0.95;
+                }
+                
+                // Move player horizontally (constrained to V-line bounds at player's Y)
+                player.x += player.direction * speed * 0.8;
+                const bounds = getXBoundsAtY(player.y);
+                player.x = Math.max(bounds.left + 15, Math.min(bounds.right - 15, player.x));
+                
+                // Update jump
+                if (isJumping) {
+                    jumpHeight += jumpVelocity;
+                    jumpVelocity -= 0.8;
+                    if (jumpHeight <= 0) {
+                        jumpHeight = 0;
+                        isJumping = false;
+                    }
+                }
+                
+                // Update distance
+                distance += speed * 0.5;
+                distanceEl.textContent = Math.floor(distance);
+                speedEl.textContent = Math.floor(speed * 10);
+                
+                // Move obstacles (straight down, no horizontal movement)
+                for (let obs of obstacles) {
+                    obs.y -= speed;
+                    
+                    // Update scale based on Y position (bigger when closer/lower)
+                    obs.scale = getDistanceScale(obs.y);
+                    
+                    // Check for ramp jump
+                    if (obs.type === 'ramp' && !isJumping) {
+                        if (checkCollision(obs)) {
+                            isJumping = true;
+                            jumpVelocity = 8;
+                            jumpHeight = 1;
+                        }
+                    }
+                    
+                    // Check collision
+                    if (obs.type !== 'ramp' && checkCollision(obs)) {
+                        gameOver = true;
+                    }
+                }
+                
+                // Remove passed obstacles and add new ones
+                obstacles = obstacles.filter(obs => obs.y > -50);
+                while (obstacles.length < 8) {
+                    obstacles.push(generateObstacle());
+                }
+                
+                // Spawn yeti
+                if (!yetiAppeared && distance > yetiDistance) {
+                    yetiAppeared = true;
+                    yeti = {
+                        x: player.x,
+                        y: canvas.height + 50,
+                        speed: speed + 1
+                    };
+                }
+                
+                // Update yeti
+                if (yeti) {
+                    // Yeti chases player
+                    const dx = player.x - yeti.x;
+                    yeti.x += dx * 0.02;
+                    yeti.y -= yeti.speed - speed + 2;
+                    
+                    // Speed up yeti over time
+                    yeti.speed = Math.min(yeti.speed + 0.001, 15);
+                    
+                    // Check if yeti caught player
+                    if (yeti.y < player.y + 30 && Math.abs(yeti.x - player.x) < 25) {
+                        gameOver = true;
+                    }
+                }
+            }
+            
+            // Draw obstacles (sorted by y for proper layering)
+            obstacles.sort((a, b) => a.y - b.y);
+            for (let obs of obstacles) {
+                if (obs.y > -30 && obs.y < canvas.height + 30) {
+                    drawObstacle(obs);
+                }
+            }
+            
+            // Draw yeti
+            if (yeti && yeti.y > -50 && yeti.y < canvas.height + 50) {
+                drawYeti(yeti.x, yeti.y);
+            }
+            
+            // Draw player
+            if (gameOver) {
+                if (yeti && yeti.y < player.y + 50) {
+                    drawEatenSkier();
+                } else {
+                    drawCrashedSkier();
+                }
+                
+                // Game over text
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(canvas.width/2 - 80, canvas.height/2 - 30, 160, 60);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 16px "W95FA", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2 - 5);
+                ctx.font = '12px "W95FA", monospace';
+                ctx.fillText(`Distance: ${Math.floor(distance)}m`, canvas.width/2, canvas.height/2 + 15);
+            } else {
+                drawSkier();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Reset game
+        function resetGame() {
+            distance = 0;
+            speed = 3;
+            isTurbo = false;
+            isJumping = false;
+            jumpHeight = 0;
+            jumpVelocity = 0;
+            player.x = 200; // Center of 400px canvas
+            player.y = startY; // Reset to top for animation
+            player.direction = 0;
+            gameOver = false;
+            yetiAppeared = false;
+            yeti = null;
+            isAnimating = true; // Start intro animation
+            initObstacles();
+            distanceEl.textContent = '0';
+            speedEl.textContent = '0';
+            
+            if (!gameRunning) {
+                gameRunning = true;
+                gameLoop();
+            }
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            // Only handle if skifree window is focused
+            const skifreeApp = document.getElementById('skifree-app');
+            if (!skifreeApp || skifreeApp.style.display === 'none') return;
+            if (!skifreeApp.classList.contains('active')) return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    keys.left = true;
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                    keys.right = true;
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                    keys.down = true;
+                    e.preventDefault();
+                    break;
+                case 'f':
+                case 'F':
+                    isTurbo = true;
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    if (!isJumping && !gameOver) {
+                        isJumping = true;
+                        jumpVelocity = 6;
+                        jumpHeight = 1;
+                    }
+                    e.preventDefault();
+                    break;
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft': keys.left = false; break;
+                case 'ArrowRight': keys.right = false; break;
+                case 'ArrowDown': keys.down = false; break;
+                case 'f':
+                case 'F': isTurbo = false; break;
+            }
+        });
+        
+        restartBtn.addEventListener('click', resetGame);
+        
+        // Start game
+        resetGame();
+    }
+
     setupSystemMenu() {
         const dropdown = document.getElementById('system-menu-dropdown');
         
@@ -919,6 +1635,100 @@ class ProgramManager {
         }
     }
 
+    showTaskbarItemMenu(taskbarItem, windowId, window, title) {
+        const menu = document.getElementById('taskbar-item-menu');
+        if (!menu) return;
+        
+        // Position menu below or above the taskbar item based on position
+        const rect = taskbarItem.getBoundingClientRect();
+        const screenContent = document.querySelector('.screen-content');
+        const screenRect = screenContent.getBoundingClientRect();
+        
+        menu.style.left = (rect.left - screenRect.left) + 'px';
+        
+        // Check if there's enough space below - if not, show menu above
+        const spaceBelow = screenRect.bottom - rect.bottom;
+        const spaceAbove = rect.top - screenRect.top;
+        const menuHeight = 200; // Approximate menu height
+        
+        if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
+            // Not enough space below, but enough above - show menu above
+            menu.style.top = (rect.top - screenRect.top - menuHeight - 2) + 'px';
+        } else {
+            // Enough space below - show menu below
+            menu.style.top = (rect.bottom - screenRect.top + 2) + 'px';
+        }
+        
+        menu.style.display = 'block';
+        menu.dataset.windowId = windowId;
+        
+        // Update menu items based on window state
+        const restoreItem = menu.querySelector('[data-action="restore"]');
+        const moveItem = menu.querySelector('[data-action="move"]');
+        const minimizeItem = menu.querySelector('[data-action="minimize"]');
+        const maximizeItem = menu.querySelector('[data-action="maximize"]');
+        
+        // Window is minimized, so Restore and Move should be enabled
+        if (restoreItem) restoreItem.classList.remove('disabled');
+        if (moveItem) moveItem.classList.remove('disabled');
+        if (minimizeItem) minimizeItem.classList.add('disabled');
+        if (maximizeItem) maximizeItem.classList.add('disabled');
+        
+        // Setup menu item handlers
+        this.setupTaskbarItemMenuHandlers(menu, windowId, window);
+    }
+
+    hideTaskbarItemMenu() {
+        const menu = document.getElementById('taskbar-item-menu');
+        if (menu) {
+            menu.style.display = 'none';
+        }
+    }
+
+    setupTaskbarItemMenuHandlers(menu, windowId, window) {
+        // Remove existing handlers to avoid duplicates
+        const items = menu.querySelectorAll('.system-menu-item');
+        items.forEach(item => {
+            const newItem = item.cloneNode(true);
+            item.parentNode.replaceChild(newItem, item);
+        });
+        
+        // Restore
+        const restoreItem = menu.querySelector('[data-action="restore"]');
+        if (restoreItem && !restoreItem.classList.contains('disabled')) {
+            restoreItem.addEventListener('click', () => {
+                this.hideTaskbarItemMenu();
+                this.restoreFromTaskbar(windowId, window);
+            });
+        }
+        
+        // Move - disabled for taskbar items (windows are moved by dragging titlebar)
+        
+        // Close
+        const closeItem = menu.querySelector('[data-action="close"]');
+        if (closeItem) {
+            closeItem.addEventListener('click', () => {
+                this.hideTaskbarItemMenu();
+                if (window) {
+                    window.style.display = 'none';
+                    this.removeFromTaskbar(windowId);
+                }
+            });
+        }
+        
+        // Switch To
+        const switchItem = menu.querySelector('[data-action="switch-to"]');
+        if (switchItem) {
+            switchItem.addEventListener('click', () => {
+                this.hideTaskbarItemMenu();
+                this.restoreFromTaskbar(windowId, window);
+                if (window) {
+                    this.focusWindow(window);
+                }
+            });
+        }
+    }
+
     setupDesktopIconMenuHandlers(menu, appId) {
         // Remove existing handlers to avoid duplicates
         const items = menu.querySelectorAll('.system-menu-item');
@@ -943,19 +1753,67 @@ class ProgramManager {
             });
         }
         
-        // Move
+        // Move - enable move mode for desktop icons
         const moveItem = menu.querySelector('[data-action="move"]');
         if (moveItem) {
+            moveItem.classList.remove('disabled');
             moveItem.addEventListener('click', () => {
                 this.hideDesktopIconMenu();
-                // Enable drag mode for the selected icon
-                const selectedIcon = document.querySelector('.desktop-icon.selected, .minimized-program-manager.selected');
-                if (selectedIcon) {
-                    selectedIcon.dataset.moveMode = 'true';
-                    // Setup drag for this icon
-                    this.setupIconDrag(selectedIcon);
-                    // Hide cursor by adding class to body
+                
+                // Find the icon element
+                let icon;
+                if (appId === 'program-manager') {
+                    icon = document.querySelector('.minimized-program-manager');
+                } else if (appId === 'ai-assistant') {
+                    icon = document.querySelector('.desktop-icon[data-app="ai-assistant"]');
+                }
+                
+                if (icon) {
+                    // Enable move mode - icon follows cursor
+                    icon.dataset.moveMode = 'true';
                     document.body.classList.add('move-mode-active');
+                    
+                    const moveHandler = (e) => {
+                        if (icon.dataset.moveMode !== 'true') {
+                            document.removeEventListener('mousemove', moveHandler);
+                            return;
+                        }
+                        
+                        const screenContent = document.querySelector('.screen-content');
+                        const screenRect = screenContent.getBoundingClientRect();
+                        
+                        // Center icon on cursor
+                        const iconWidth = icon.offsetWidth;
+                        const iconHeight = icon.offsetHeight;
+                        
+                        let newLeft = e.clientX - screenRect.left - iconWidth / 2;
+                        let newTop = e.clientY - screenRect.top - iconHeight / 2;
+                        
+                        // Constrain to screen bounds
+                        newLeft = Math.max(0, Math.min(newLeft, screenContent.offsetWidth - iconWidth));
+                        newTop = Math.max(0, Math.min(newTop, screenContent.offsetHeight - iconHeight));
+                        
+                        icon.style.position = 'absolute';
+                        icon.style.left = newLeft + 'px';
+                        icon.style.top = newTop + 'px';
+                    };
+                    
+                    const placeHandler = (e) => {
+                        if (icon.dataset.moveMode === 'true') {
+                            delete icon.dataset.moveMode;
+                            document.body.classList.remove('move-mode-active');
+                            document.removeEventListener('mousemove', moveHandler);
+                            document.removeEventListener('click', placeHandler);
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    };
+                    
+                    document.addEventListener('mousemove', moveHandler);
+                    // Use setTimeout to avoid immediate click placement
+                    setTimeout(() => {
+                        document.addEventListener('click', placeHandler);
+                    }, 100);
                 }
             });
         }
@@ -1039,6 +1897,14 @@ class ProgramManager {
         if (win.dataset.controlsSetup) return;
         win.dataset.controlsSetup = 'true';
 
+        // Focus window when clicking on window content
+        const windowContent = win.querySelector('.window-content');
+        if (windowContent) {
+            windowContent.addEventListener('mousedown', () => {
+                this.focusWindow(win);
+            });
+        }
+
         const systemMenuBtn = win.querySelector('.system-menu');
         const buttons = win.querySelectorAll('.window-btn');
         const minimizeBtn = buttons[0];
@@ -1095,32 +1961,54 @@ class ProgramManager {
         let startX, startY, initialLeft, initialTop;
 
         titlebar.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('window-btn') || e.target.classList.contains('system-menu')) {
+            // Don't drag if clicking on buttons or system menu
+            if (e.target.classList.contains('window-btn') || 
+                e.target.closest('.window-btn') ||
+                e.target.classList.contains('system-menu') ||
+                e.target.closest('.system-menu')) {
                 return;
             }
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
-            initialLeft = win.offsetLeft;
-            initialTop = win.offsetTop;
+            
+            // Get current position relative to screen content
+            const rect = win.getBoundingClientRect();
+            const screenContent = document.querySelector('.screen-content');
+            const screenRect = screenContent.getBoundingClientRect();
+            initialLeft = rect.left - screenRect.left;
+            initialTop = rect.top - screenRect.top;
+            
             this.focusWindow(win);
+            e.preventDefault();
         });
 
-        document.addEventListener('mousemove', (e) => {
+        const mousemoveHandler = (e) => {
             if (!isDragging) return;
-            // Only allow drag if move mode is enabled
-            if (!icon.dataset.moveMode) {
-                isDragging = false;
-                return;
-            }
             e.preventDefault();
+            
+            const screenContent = document.querySelector('.screen-content');
+            const screenRect = screenContent.getBoundingClientRect();
             
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
             
-            win.style.left = (initialLeft + dx) + 'px';
-            win.style.top = (initialTop + dy) + 'px';
-        });
+            let newLeft = initialLeft + dx;
+            let newTop = initialTop + dy;
+            
+            // Constrain to screen bounds
+            const maxX = screenContent.offsetWidth - win.offsetWidth;
+            const maxY = screenContent.offsetHeight - win.offsetHeight;
+            
+            newLeft = Math.max(0, Math.min(newLeft, maxX));
+            newTop = Math.max(0, Math.min(newTop, maxY));
+            
+            win.style.left = newLeft + 'px';
+            win.style.top = newTop + 'px';
+            win.style.position = 'absolute';
+        };
+
+        document.addEventListener('mousemove', mousemoveHandler);
 
         document.addEventListener('mouseup', () => {
             isDragging = false;

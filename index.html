@@ -17,7 +17,7 @@
                         <!-- Quill AI icon -->
                         <div class="desktop-icon" id="ai-assistant-icon" data-app="ai-assistant">
                             <div class="desktop-icon-image">
-                                <div class="quill-icon"></div>
+                                <img src="assets/quill.png" alt="Quill AI" class="quill-icon-image">
                             </div>
                             <div class="desktop-icon-label">Quill AI</div>
                         </div>
@@ -106,7 +106,7 @@
                     <!-- System Menu Dropdown (shared) -->
                     <div class="system-menu-dropdown" id="system-menu-dropdown" style="display: none;">
                         <div class="system-menu-item disabled"><u>R</u>estore</div>
-                        <div class="system-menu-item"><u>M</u>ove</div>
+                        <div class="system-menu-item disabled"><u>M</u>ove</div>
                         <div class="system-menu-item"><u>S</u>ize</div>
                         <div class="system-menu-item" data-action="minimize">Minimize</div>
                         <div class="system-menu-item" data-action="maximize">Maximize</div>
@@ -123,6 +123,19 @@
                         <div class="system-menu-item disabled"><u>S</u>ize</div>
                         <div class="system-menu-item disabled" data-action="minimize">Minimize</div>
                         <div class="system-menu-item" data-action="maximize">Maximize</div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item" data-action="switch-to">Switch To...<span class="shortcut">Ctrl+Esc</span></div>
+                    </div>
+
+                    <!-- Taskbar Item Context Menu -->
+                    <div class="system-menu-dropdown" id="taskbar-item-menu" style="display: none;">
+                        <div class="system-menu-item" data-action="restore"><u>R</u>estore</div>
+                        <div class="system-menu-item disabled"><u>M</u>ove</div>
+                        <div class="system-menu-item disabled"><u>S</u>ize</div>
+                        <div class="system-menu-item disabled" data-action="minimize">Minimize</div>
+                        <div class="system-menu-item disabled" data-action="maximize">Maximize</div>
                         <div class="system-menu-separator"></div>
                         <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
                         <div class="system-menu-separator"></div>
@@ -189,6 +202,33 @@
                             <div class="program-icon" data-app="minesweeper">
                                 <div class="app-icon minesweeper-icon"></div>
                                 <div class="program-icon-label">Minesweeper</div>
+                            </div>
+                            <div class="program-icon" data-app="skifree">
+                                <div class="app-icon skifree-icon"></div>
+                                <div class="program-icon-label">SkiFree</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SkiFree Game Window -->
+                    <div class="application-window window" id="skifree-app" style="display: none;">
+                        <div class="window-titlebar">
+                            <div class="system-menu">─</div>
+                            <span class="window-title">SkiFree</span>
+                            <div class="window-controls">
+                                <button class="window-btn">▼</button>
+                                <button class="window-btn">▲</button>
+                            </div>
+                        </div>
+                        <div class="window-content skifree-content">
+                            <div class="skifree-header">
+                                <div class="skifree-score">Distance: <span id="skifree-distance">0</span>m</div>
+                                <div class="skifree-speed">Speed: <span id="skifree-speed">0</span></div>
+                                <button class="skifree-restart-btn" id="skifree-restart">New Run</button>
+                            </div>
+                            <canvas id="skifree-canvas" width="400" height="350"></canvas>
+                            <div class="skifree-instructions">
+                                ← → to steer | ↓ to speed up | SPACE to jump | F to go fast
                             </div>
                         </div>
                     </div>
