@@ -1044,6 +1044,15 @@ body.move-mode-active * {
     image-rendering: crisp-edges;
 }
 
+.quill-logo-img {
+    width: 28px;
+    height: 24px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    border: 1px solid var(--win-border-dark);
+    background: var(--win-white);
+}
+
 .quill-logo-icon {
     width: 24px;
     height: 24px;
