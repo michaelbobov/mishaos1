@@ -3,9 +3,29 @@
 class ProgramManager {
     constructor() {
         this.zIndex = 100;
+        this.mdiOffset = 0; // For cascading MDI child windows
         this.currentWindow = null;
         this.minimizedWindows = new Map();
         this.init();
+    }
+
+    getNextMdiPosition() {
+        // First window should be flush with top-left (0, 0)
+        // Subsequent windows cascade with offset
+        if (this.mdiOffset === 0) {
+            this.mdiOffset = (this.mdiOffset + 1) % 6;
+            return { left: 0, top: 0 };
+        }
+        const offset = this.mdiOffset * 25;
+        this.mdiOffset = (this.mdiOffset + 1) % 6; // Reset after 6 windows
+        return { left: 0 + offset, top: 0 + offset };
+    }
+
+    getStandaloneWindowPosition() {
+        // Position at top-left, flush with edge, below File menu
+        // Title bar (20px) + Menu bar (padding + border) = ~42px from top
+        // Windows are positioned relative to .win31-desktop
+        return { left: 0, top: 42 };
     }
 
     initDoom() {
@@ -557,8 +577,45 @@ class ProgramManager {
         this.setupStatusBarControls();
         this.setupDesktopClickDeselect();
         this.setupVhsHotspot();
+        this.setupDesktopClock();
         this.updateStatusBar();
         setInterval(() => this.updateStatusBar(), 1000);
+    }
+
+    setupDesktopClock() {
+        const clockWindow = document.getElementById('desktop-clock');
+        if (clockWindow) {
+            // Set up window controls (minimize, maximize)
+            this.setupSingleWindowControls(clockWindow);
+            // Set up window dragging
+            this.setupWindowDrag(clockWindow);
+        }
+        
+        const updateClock = () => {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            
+            const hourHand = document.getElementById('clock-hand-hour');
+            const minuteHand = document.getElementById('clock-hand-minute');
+            const secondHand = document.getElementById('clock-hand-second');
+            
+            if (hourHand && minuteHand && secondHand) {
+                // Calculate rotation angles
+                const hourDeg = (hours % 12) * 30 + minutes * 0.5; // 30 degrees per hour + 0.5 per minute
+                const minuteDeg = minutes * 6 + seconds * 0.1; // 6 degrees per minute
+                const secondDeg = seconds * 6; // 6 degrees per second
+                
+                hourHand.style.transform = `rotate(${hourDeg}deg)`;
+                minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+                secondHand.style.transform = `rotate(${secondDeg}deg)`;
+            }
+        };
+        
+        // Update immediately and then every second
+        updateClock();
+        setInterval(updateClock, 1000);
     }
 
     setupVhsHotspot() {
@@ -1199,6 +1256,34 @@ class ProgramManager {
         }
     }
 
+    getAppIconClass(windowId) {
+        // Map window IDs to their icon classes
+        const iconMap = {
+            'minesweeper-app': 'minesweeper-icon',
+            'skifree-app': 'skifree-icon',
+            'solitaire-app': 'solitaire-icon',
+            'doom-app': 'doom-icon',
+            'readme-app': 'readme-icon',
+            'desktop-clock': 'clock-icon',
+            'write-app': 'write-icon',
+            'paintbrush-app': 'paintbrush-icon',
+            'terminal-app': 'terminal-icon',
+            'notepad-app': 'notepad-icon',
+            'recorder-app': 'recorder-icon',
+            'calendar-app': 'calendar-icon',
+            'calculator-app': 'calculator-icon',
+            'clock-app': 'clock-icon',
+            'object-packager-app': 'packager-icon',
+            'character-map-app': 'charmap-icon',
+            'media-player-app': 'mediaplayer-icon',
+            'sound-recorder-app': 'soundrec-icon',
+            'cardfile-app': 'cardfile-icon',
+            'ai-assistant-app': 'quill-icon-image'
+        };
+        
+        return iconMap[windowId] || null;
+    }
+
     addToTaskbar(windowId, title, window) {
         const taskbar = document.querySelector('.desktop-taskbar');
         if (!taskbar) return;
@@ -1207,17 +1292,33 @@ class ProgramManager {
         if (windowId === 'program-manager') return;
         
         // Only add application windows to taskbar, not program group windows
-        if (!window.classList.contains('application-window')) return;
+        // Allow desktop-clock as it's a special case
+        if (!window.classList.contains('application-window') && windowId !== 'desktop-clock') return;
         
         // Check if already in taskbar
         if (this.minimizedWindows.has(windowId)) return;
+        
+        // Get the appropriate icon class
+        const iconClass = this.getAppIconClass(windowId);
+        
+        let iconHTML;
+        if (iconClass === 'quill-icon-image') {
+            // Special case: Quill AI uses an image
+            iconHTML = `<img src="assets/quill.png" alt="Quill AI" class="quill-icon-image" style="width: 32px; height: 32px; object-fit: contain;">`;
+        } else if (iconClass) {
+            // Use the actual app icon
+            iconHTML = `<div class="app-icon ${iconClass}"></div>`;
+        } else {
+            // Fallback to placeholder
+            iconHTML = `<div class="mini-window-icon"></div>`;
+        }
         
         const taskbarItem = document.createElement('div');
         taskbarItem.className = 'taskbar-item';
         taskbarItem.dataset.windowId = windowId;
         taskbarItem.innerHTML = `
             <div class="taskbar-item-image">
-                <div class="mini-window-icon"></div>
+                ${iconHTML}
             </div>
             <div class="taskbar-item-label">${title}</div>
         `;
@@ -1313,6 +1414,14 @@ class ProgramManager {
                     this.openSolitaire();
                 } else if (app === 'doom') {
                     this.openDoom();
+                } else if (app === 'readme') {
+                    this.openReadme();
+                } else if (app === 'write' || app === 'paintbrush' || app === 'terminal' || 
+                           app === 'notepad' || app === 'recorder' || app === 'calendar' ||
+                           app === 'calculator' || app === 'clock' || app === 'object-packager' ||
+                           app === 'character-map' || app === 'media-player' || 
+                           app === 'sound-recorder' || app === 'cardfile') {
+                    this.openAccessory(app);
                 }
             });
         });
@@ -1324,9 +1433,15 @@ class ProgramManager {
 
         if (minesweeperApp.style.display === 'none' || !minesweeperApp.style.display) {
             minesweeperApp.style.display = 'flex';
-            minesweeperApp.style.left = `${100 + Math.random() * 100}px`;
-            minesweeperApp.style.top = `${60 + Math.random() * 50}px`;
+            const pos = this.getStandaloneWindowPosition();
+            // Always position at top-left, flush with edge
+            minesweeperApp.style.left = `${pos.left}px`;
+            minesweeperApp.style.top = `${pos.top}px`;
             minesweeperApp.style.width = '300px';
+            minesweeperApp.style.height = 'auto';
+            minesweeperApp.style.position = 'absolute';
+            minesweeperApp.style.right = 'auto';
+            minesweeperApp.style.bottom = 'auto';
             this.setupWindowDrag(minesweeperApp);
             this.setupSingleWindowControls(minesweeperApp);
             
@@ -1338,10 +1453,529 @@ class ProgramManager {
                 this.initMinesweeper();
                 minesweeperApp.dataset.initialized = 'true';
             }
+        } else {
+            // Window is already open, ensure it's at the correct position
+            const pos = this.getStandaloneWindowPosition();
+            minesweeperApp.style.left = `${pos.left}px`;
+            minesweeperApp.style.top = `${pos.top}px`;
         }
         
         // Always bring to front when opening/clicking
         this.focusWindow(minesweeperApp);
+    }
+
+    openReadme() {
+        const readmeApp = document.getElementById('readme-app');
+        if (!readmeApp) return;
+
+        if (readmeApp.style.display === 'none' || !readmeApp.style.display) {
+            readmeApp.style.display = 'flex';
+            const pos = this.getStandaloneWindowPosition();
+            readmeApp.style.left = `${pos.left}px`;
+            readmeApp.style.top = `${pos.top}px`;
+            readmeApp.style.width = '500px';
+            readmeApp.style.height = '400px';
+            readmeApp.style.position = 'absolute';
+            readmeApp.style.right = 'auto';
+            readmeApp.style.bottom = 'auto';
+            this.setupWindowDrag(readmeApp);
+            this.setupSingleWindowControls(readmeApp);
+            
+            // Remove from taskbar if it was there
+            this.removeFromTaskbar('readme-app');
+        } else {
+            // Window is already open, ensure it's at the correct position
+            const pos = this.getStandaloneWindowPosition();
+            readmeApp.style.left = `${pos.left}px`;
+            readmeApp.style.top = `${pos.top}px`;
+        }
+        
+        // Always bring to front when opening/clicking
+        this.focusWindow(readmeApp);
+    }
+
+    getAccessoryContent(appName) {
+        const contents = {
+            'calculator': `
+                <div class="calculator-app">
+                    <input type="text" class="calc-display" id="calc-display" value="0" readonly>
+                    <div class="calc-buttons">
+                        <button class="calc-btn calc-clear" data-action="clear">C</button>
+                        <button class="calc-btn calc-op" data-action="backspace">←</button>
+                        <button class="calc-btn calc-op" data-op="%">%</button>
+                        <button class="calc-btn calc-op" data-op="/">÷</button>
+                        <button class="calc-btn" data-num="7">7</button>
+                        <button class="calc-btn" data-num="8">8</button>
+                        <button class="calc-btn" data-num="9">9</button>
+                        <button class="calc-btn calc-op" data-op="*">×</button>
+                        <button class="calc-btn" data-num="4">4</button>
+                        <button class="calc-btn" data-num="5">5</button>
+                        <button class="calc-btn" data-num="6">6</button>
+                        <button class="calc-btn calc-op" data-op="-">−</button>
+                        <button class="calc-btn" data-num="1">1</button>
+                        <button class="calc-btn" data-num="2">2</button>
+                        <button class="calc-btn" data-num="3">3</button>
+                        <button class="calc-btn calc-op" data-op="+">+</button>
+                        <button class="calc-btn" data-num="0" style="grid-column: span 2;">0</button>
+                        <button class="calc-btn" data-num=".">.</button>
+                        <button class="calc-btn calc-equals" data-action="equals">=</button>
+                    </div>
+                </div>`,
+            'notepad': `
+                <div class="notepad-app">
+                    <div class="notepad-menu">
+                        <span class="menu-item"><u>F</u>ile</span>
+                        <span class="menu-item"><u>E</u>dit</span>
+                        <span class="menu-item"><u>S</u>earch</span>
+                        <span class="menu-item"><u>H</u>elp</span>
+                    </div>
+                    <textarea class="notepad-textarea" placeholder="Type here..."></textarea>
+                </div>`,
+            'terminal': `
+                <div class="terminal-app">
+                    <div class="terminal-output" id="terminal-output">Microsoft(R) MS-DOS(R) Version 6.22<br>(C)Copyright Microsoft Corp 1981-1994.<br><br>C:\\WINDOWS></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">C:\\WINDOWS></span>
+                        <input type="text" class="terminal-input" id="terminal-input" autofocus>
+                    </div>
+                </div>`,
+            'calendar': `
+                <div class="calendar-app">
+                    <div class="calendar-header">
+                        <button class="calendar-nav" id="cal-prev">◄</button>
+                        <span class="calendar-title" id="cal-title"></span>
+                        <button class="calendar-nav" id="cal-next">►</button>
+                    </div>
+                    <div class="calendar-weekdays">
+                        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                    </div>
+                    <div class="calendar-days" id="cal-days"></div>
+                </div>`,
+            'write': `
+                <div class="write-app">
+                    <div class="write-toolbar">
+                        <button class="write-btn" data-cmd="bold"><b>B</b></button>
+                        <button class="write-btn" data-cmd="italic"><i>I</i></button>
+                        <button class="write-btn" data-cmd="underline"><u>U</u></button>
+                        <span class="write-sep">|</span>
+                        <button class="write-btn" data-cmd="justifyLeft">≡</button>
+                        <button class="write-btn" data-cmd="justifyCenter">≡</button>
+                        <button class="write-btn" data-cmd="justifyRight">≡</button>
+                    </div>
+                    <div class="write-editor" contenteditable="true"></div>
+                </div>`,
+            'paintbrush': `
+                <div class="paintbrush-app">
+                    <div class="paint-toolbar">
+                        <div class="paint-tools">
+                            <button class="paint-tool active" data-tool="brush" title="Brush">🖌</button>
+                            <button class="paint-tool" data-tool="eraser" title="Eraser">⌫</button>
+                            <button class="paint-tool" data-tool="fill" title="Fill">🪣</button>
+                        </div>
+                        <div class="paint-colors">
+                            <div class="paint-color active" data-color="#000000" style="background:#000000"></div>
+                            <div class="paint-color" data-color="#FFFFFF" style="background:#FFFFFF"></div>
+                            <div class="paint-color" data-color="#FF0000" style="background:#FF0000"></div>
+                            <div class="paint-color" data-color="#00FF00" style="background:#00FF00"></div>
+                            <div class="paint-color" data-color="#0000FF" style="background:#0000FF"></div>
+                            <div class="paint-color" data-color="#FFFF00" style="background:#FFFF00"></div>
+                            <div class="paint-color" data-color="#FF00FF" style="background:#FF00FF"></div>
+                            <div class="paint-color" data-color="#00FFFF" style="background:#00FFFF"></div>
+                        </div>
+                        <input type="range" class="paint-size" min="1" max="20" value="5" title="Brush Size">
+                    </div>
+                    <canvas class="paint-canvas" width="380" height="250"></canvas>
+                </div>`,
+            'character-map': `
+                <div class="charmap-app">
+                    <div class="charmap-grid" id="charmap-grid"></div>
+                    <div class="charmap-preview">
+                        <span class="charmap-char" id="charmap-selected">A</span>
+                        <input type="text" class="charmap-input" id="charmap-input" readonly>
+                        <button class="charmap-copy" id="charmap-copy">Copy</button>
+                    </div>
+                </div>`,
+            'media-player': `
+                <div class="mediaplayer-app">
+                    <div class="mp-display">
+                        <span class="mp-title">No file loaded</span>
+                        <span class="mp-time">00:00 / 00:00</span>
+                    </div>
+                    <div class="mp-controls">
+                        <button class="mp-btn" data-action="prev">⏮</button>
+                        <button class="mp-btn mp-play" data-action="play">▶</button>
+                        <button class="mp-btn" data-action="stop">⏹</button>
+                        <button class="mp-btn" data-action="next">⏭</button>
+                    </div>
+                    <input type="range" class="mp-progress" min="0" max="100" value="0">
+                    <div class="mp-volume">
+                        <span>🔊</span>
+                        <input type="range" class="mp-vol-slider" min="0" max="100" value="75">
+                    </div>
+                </div>`,
+            'sound-recorder': `
+                <div class="soundrec-app">
+                    <div class="sr-display">
+                        <canvas class="sr-waveform" width="300" height="60"></canvas>
+                        <span class="sr-time">00:00.00</span>
+                    </div>
+                    <div class="sr-controls">
+                        <button class="sr-btn" data-action="rewind">⏪</button>
+                        <button class="sr-btn" data-action="play">▶</button>
+                        <button class="sr-btn" data-action="stop">⏹</button>
+                        <button class="sr-btn sr-record" data-action="record">⏺</button>
+                    </div>
+                    <div class="sr-status">Stopped</div>
+                </div>`,
+            'cardfile': `
+                <div class="cardfile-app">
+                    <div class="cf-tabs" id="cf-tabs">
+                        <div class="cf-tab active" data-index="0">A</div>
+                        <div class="cf-tab" data-index="1">B</div>
+                        <div class="cf-tab" data-index="2">C</div>
+                        <div class="cf-tab" data-index="3">+</div>
+                    </div>
+                    <div class="cf-card">
+                        <input type="text" class="cf-title" placeholder="Card Title" value="Address Book">
+                        <textarea class="cf-content" placeholder="Card content...">Name: John Doe
+Phone: 555-1234
+Address: 123 Main St</textarea>
+                    </div>
+                </div>`,
+            'recorder': `
+                <div class="recorder-app">
+                    <div class="rec-status">Ready to record macros</div>
+                    <div class="rec-controls">
+                        <button class="rec-btn" data-action="record">⏺ Record</button>
+                        <button class="rec-btn" data-action="stop" disabled>⏹ Stop</button>
+                        <button class="rec-btn" data-action="play" disabled>▶ Play</button>
+                    </div>
+                    <div class="rec-list">
+                        <div class="rec-item">Macro 1 - 3 actions</div>
+                        <div class="rec-item">Macro 2 - 5 actions</div>
+                    </div>
+                </div>`,
+            'object-packager': `
+                <div class="packager-app">
+                    <div class="pkg-icon">📦</div>
+                    <div class="pkg-text">Drag and drop a file here<br>to create a package</div>
+                    <div class="pkg-buttons">
+                        <button class="pkg-btn">Import...</button>
+                        <button class="pkg-btn">Export...</button>
+                    </div>
+                </div>`
+        };
+        return contents[appName] || `<div style="padding: 20px; text-align: center;">${appName} - Coming Soon</div>`;
+    }
+
+    getAccessorySize(appName) {
+        const sizes = {
+            'calculator': { width: 220, height: 320 },
+            'notepad': { width: 450, height: 350 },
+            'terminal': { width: 500, height: 300 },
+            'calendar': { width: 280, height: 300 },
+            'write': { width: 500, height: 400 },
+            'paintbrush': { width: 420, height: 360 },
+            'character-map': { width: 380, height: 320 },
+            'media-player': { width: 350, height: 200 },
+            'sound-recorder': { width: 350, height: 180 },
+            'cardfile': { width: 350, height: 280 },
+            'recorder': { width: 300, height: 250 },
+            'object-packager': { width: 300, height: 250 }
+        };
+        return sizes[appName] || { width: 400, height: 300 };
+    }
+
+    initAccessory(appName, appWindow) {
+        if (appName === 'calculator') {
+            this.initCalculator(appWindow);
+        } else if (appName === 'terminal') {
+            this.initTerminal(appWindow);
+        } else if (appName === 'calendar') {
+            this.initCalendar(appWindow);
+        } else if (appName === 'paintbrush') {
+            this.initPaintbrush(appWindow);
+        } else if (appName === 'character-map') {
+            this.initCharacterMap(appWindow);
+        } else if (appName === 'write') {
+            this.initWrite(appWindow);
+        }
+    }
+
+    initCalculator(appWindow) {
+        const display = appWindow.querySelector('#calc-display');
+        let current = '0';
+        let operator = null;
+        let previous = null;
+        let shouldReset = false;
+
+        appWindow.querySelectorAll('.calc-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const num = btn.dataset.num;
+                const op = btn.dataset.op;
+                const action = btn.dataset.action;
+
+                if (num !== undefined) {
+                    if (current === '0' || shouldReset) {
+                        current = num;
+                        shouldReset = false;
+                    } else {
+                        current += num;
+                    }
+                    display.value = current;
+                } else if (op) {
+                    if (previous !== null && operator && !shouldReset) {
+                        current = String(eval(`${previous} ${operator} ${current}`));
+                        display.value = current;
+                    }
+                    previous = current;
+                    operator = op;
+                    shouldReset = true;
+                } else if (action === 'clear') {
+                    current = '0';
+                    previous = null;
+                    operator = null;
+                    display.value = '0';
+                } else if (action === 'backspace') {
+                    current = current.slice(0, -1) || '0';
+                    display.value = current;
+                } else if (action === 'equals') {
+                    if (previous !== null && operator) {
+                        try {
+                            current = String(eval(`${previous} ${operator} ${current}`));
+                            display.value = current;
+                        } catch { display.value = 'Error'; current = '0'; }
+                        previous = null;
+                        operator = null;
+                    }
+                }
+            });
+        });
+    }
+
+    initTerminal(appWindow) {
+        const output = appWindow.querySelector('#terminal-output');
+        const input = appWindow.querySelector('#terminal-input');
+        const commands = {
+            'help': 'Available commands: help, dir, cls, date, time, ver, echo, type',
+            'dir': 'Volume in drive C is WINDOWS\n Directory of C:\\WINDOWS\n\n.              <DIR>\n..             <DIR>\nSYSTEM         <DIR>\nWIN.INI           2048\nSYSTEM.INI        1536\n     2 File(s)     3,584 bytes\n     3 Dir(s)  104,857,600 bytes free',
+            'cls': '__CLEAR__',
+            'date': `Current date is ${new Date().toLocaleDateString()}`,
+            'time': `Current time is ${new Date().toLocaleTimeString()}`,
+            'ver': 'MS-DOS Version 6.22',
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = input.value.trim().toLowerCase();
+                let response = '';
+                
+                if (cmd.startsWith('echo ')) {
+                    response = cmd.slice(5);
+                } else if (commands[cmd]) {
+                    if (commands[cmd] === '__CLEAR__') {
+                        output.innerHTML = 'C:\\WINDOWS>';
+                        input.value = '';
+                        return;
+                    }
+                    response = commands[cmd];
+                } else if (cmd) {
+                    response = `Bad command or file name`;
+                }
+                
+                output.innerHTML += input.value + '<br>' + (response ? response.replace(/\n/g, '<br>') + '<br>' : '') + '<br>C:\\WINDOWS>';
+                input.value = '';
+                output.scrollTop = output.scrollHeight;
+            }
+        });
+    }
+
+    initCalendar(appWindow) {
+        const title = appWindow.querySelector('#cal-title');
+        const daysContainer = appWindow.querySelector('#cal-days');
+        const prevBtn = appWindow.querySelector('#cal-prev');
+        const nextBtn = appWindow.querySelector('#cal-next');
+        
+        let currentDate = new Date();
+        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        function render() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            title.textContent = `${months[month]} ${year}`;
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+            
+            let html = '';
+            for (let i = 0; i < firstDay; i++) html += '<span></span>';
+            for (let d = 1; d <= daysInMonth; d++) {
+                const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+                html += `<span class="${isToday ? 'today' : ''}">${d}</span>`;
+            }
+            daysContainer.innerHTML = html;
+        }
+
+        prevBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); render(); });
+        nextBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); render(); });
+        render();
+    }
+
+    initPaintbrush(appWindow) {
+        const canvas = appWindow.querySelector('.paint-canvas');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+        let color = '#000000';
+        let brushSize = 5;
+        let tool = 'brush';
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        canvas.addEventListener('mousedown', (e) => { painting = true; draw(e); });
+        canvas.addEventListener('mouseup', () => painting = false);
+        canvas.addEventListener('mouseleave', () => painting = false);
+        canvas.addEventListener('mousemove', draw);
+
+        function draw(e) {
+            if (!painting) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, brushSize, 0, Math.PI * 2);
+            ctx.fillStyle = tool === 'eraser' ? '#FFFFFF' : color;
+            ctx.fill();
+        }
+
+        appWindow.querySelectorAll('.paint-color').forEach(el => {
+            el.addEventListener('click', () => {
+                appWindow.querySelectorAll('.paint-color').forEach(c => c.classList.remove('active'));
+                el.classList.add('active');
+                color = el.dataset.color;
+            });
+        });
+
+        appWindow.querySelectorAll('.paint-tool').forEach(el => {
+            el.addEventListener('click', () => {
+                appWindow.querySelectorAll('.paint-tool').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+                tool = el.dataset.tool;
+            });
+        });
+
+        appWindow.querySelector('.paint-size').addEventListener('input', (e) => brushSize = e.target.value);
+    }
+
+    initCharacterMap(appWindow) {
+        const grid = appWindow.querySelector('#charmap-grid');
+        const selected = appWindow.querySelector('#charmap-selected');
+        const input = appWindow.querySelector('#charmap-input');
+        const copyBtn = appWindow.querySelector('#charmap-copy');
+
+        let html = '';
+        for (let i = 33; i <= 126; i++) html += `<span class="charmap-cell" data-char="${String.fromCharCode(i)}">${String.fromCharCode(i)}</span>`;
+        for (let i = 161; i <= 255; i++) html += `<span class="charmap-cell" data-char="${String.fromCharCode(i)}">${String.fromCharCode(i)}</span>`;
+        grid.innerHTML = html;
+
+        grid.addEventListener('click', (e) => {
+            if (e.target.classList.contains('charmap-cell')) {
+                const char = e.target.dataset.char;
+                selected.textContent = char;
+                input.value += char;
+            }
+        });
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(input.value);
+            input.select();
+        });
+    }
+
+    initWrite(appWindow) {
+        appWindow.querySelectorAll('.write-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.execCommand(btn.dataset.cmd, false, null);
+            });
+        });
+    }
+
+    openAccessory(appName) {
+        // Special case: Clock connects to the existing desktop clock
+        if (appName === 'clock') {
+            const clockWindow = document.getElementById('desktop-clock');
+            if (clockWindow) {
+                if (clockWindow.style.display === 'none') {
+                    clockWindow.style.display = 'flex';
+                }
+                this.focusWindow(clockWindow);
+                return;
+            }
+        }
+
+        const appTitles = {
+            'write': 'Write',
+            'paintbrush': 'Paintbrush',
+            'terminal': 'Terminal',
+            'notepad': 'Notepad',
+            'recorder': 'Recorder',
+            'calendar': 'Calendar',
+            'calculator': 'Calculator',
+            'clock': 'Clock',
+            'object-packager': 'Object Packager',
+            'character-map': 'Character Map',
+            'media-player': 'Media Player',
+            'sound-recorder': 'Sound Recorder',
+            'cardfile': 'Cardfile'
+        };
+
+        const title = appTitles[appName] || appName;
+        const windowId = `${appName}-app`;
+        let appWindow = document.getElementById(windowId);
+        
+        if (!appWindow) {
+            const screenContent = document.querySelector('.win31-desktop');
+            if (!screenContent) return;
+            
+            appWindow = document.createElement('div');
+            appWindow.id = windowId;
+            appWindow.className = 'application-window window';
+            appWindow.style.display = 'none';
+            
+            appWindow.innerHTML = `
+                <div class="window-titlebar">
+                    <div class="system-menu">─</div>
+                    <span class="window-title">${title}</span>
+                    <div class="window-controls">
+                        <button class="window-btn">▼</button>
+                        <button class="window-btn">▲</button>
+                    </div>
+                </div>
+                <div class="window-content">${this.getAccessoryContent(appName)}</div>
+            `;
+            
+            screenContent.appendChild(appWindow);
+            this.initAccessory(appName, appWindow);
+        }
+
+        const size = this.getAccessorySize(appName);
+        if (appWindow.style.display === 'none' || !appWindow.style.display) {
+            appWindow.style.display = 'flex';
+            const pos = this.getStandaloneWindowPosition();
+            appWindow.style.left = `${pos.left}px`;
+            appWindow.style.top = `${pos.top}px`;
+            appWindow.style.width = `${size.width}px`;
+            appWindow.style.height = `${size.height}px`;
+            appWindow.style.position = 'absolute';
+            appWindow.style.right = 'auto';
+            appWindow.style.bottom = 'auto';
+            this.setupWindowDrag(appWindow);
+            this.setupSingleWindowControls(appWindow);
+        }
+        
+        this.focusWindow(appWindow);
     }
 
     initMinesweeper() {
@@ -1577,10 +2211,14 @@ class ProgramManager {
 
         if (solitaireApp.style.display === 'none' || !solitaireApp.style.display) {
             solitaireApp.style.display = 'flex';
-            solitaireApp.style.left = `${90 + Math.random() * 60}px`;
-            solitaireApp.style.top = `${60 + Math.random() * 40}px`;
+            const pos = this.getStandaloneWindowPosition();
+            solitaireApp.style.left = `${pos.left}px`;
+            solitaireApp.style.top = `${pos.top}px`;
             solitaireApp.style.width = '620px';
             solitaireApp.style.height = '520px';
+            solitaireApp.style.position = 'absolute';
+            solitaireApp.style.right = 'auto';
+            solitaireApp.style.bottom = 'auto';
             this.setupWindowDrag(solitaireApp);
             this.setupSingleWindowControls(solitaireApp);
             
@@ -1592,6 +2230,11 @@ class ProgramManager {
                 this.initSolitaire();
                 solitaireApp.dataset.initialized = 'true';
             }
+        } else {
+            // Window is already open, ensure it's at the correct position
+            const pos = this.getStandaloneWindowPosition();
+            solitaireApp.style.left = `${pos.left}px`;
+            solitaireApp.style.top = `${pos.top}px`;
         }
         
         // Always bring to front when opening/clicking
@@ -2100,10 +2743,14 @@ class ProgramManager {
 
         if (skifreeApp.style.display === 'none' || !skifreeApp.style.display) {
             skifreeApp.style.display = 'flex';
-            skifreeApp.style.left = `${80 + Math.random() * 80}px`;
-            skifreeApp.style.top = `${40 + Math.random() * 40}px`;
+            const pos = this.getStandaloneWindowPosition();
+            skifreeApp.style.left = `${pos.left}px`;
+            skifreeApp.style.top = `${pos.top}px`;
             skifreeApp.style.width = '420px';
             skifreeApp.style.height = '430px';
+            skifreeApp.style.position = 'absolute';
+            skifreeApp.style.right = 'auto';
+            skifreeApp.style.bottom = 'auto';
             this.setupWindowDrag(skifreeApp);
             this.setupSingleWindowControls(skifreeApp);
             
@@ -2115,6 +2762,11 @@ class ProgramManager {
                 this.initSkiFree();
                 skifreeApp.dataset.initialized = 'true';
             }
+        } else {
+            // Window is already open, ensure it's at the correct position
+            const pos = this.getStandaloneWindowPosition();
+            skifreeApp.style.left = `${pos.left}px`;
+            skifreeApp.style.top = `${pos.top}px`;
         }
         
         // Always bring to front when opening/clicking
@@ -2127,10 +2779,14 @@ class ProgramManager {
 
         if (doomApp.style.display === 'none' || !doomApp.style.display) {
             doomApp.style.display = 'flex';
-            doomApp.style.left = `${70 + Math.random() * 80}px`;
-            doomApp.style.top = `${50 + Math.random() * 50}px`;
+            const pos = this.getStandaloneWindowPosition();
+            doomApp.style.left = `${pos.left}px`;
+            doomApp.style.top = `${pos.top}px`;
             doomApp.style.width = '520px';
             doomApp.style.height = '420px';
+            doomApp.style.position = 'absolute';
+            doomApp.style.right = 'auto';
+            doomApp.style.bottom = 'auto';
             this.setupWindowDrag(doomApp);
             this.setupSingleWindowControls(doomApp);
             
@@ -3198,12 +3854,17 @@ class ProgramManager {
             win.style.height = '';
             win.style.left = '';
             win.style.top = '';
+            win.style.bottom = '';
         } else {
             win.classList.add('maximized');
-            win.style.width = '100%';
-            win.style.height = 'calc(100% - 44px)';
-            win.style.left = '0';
-            win.style.top = '44px';
+            const statusBar = document.querySelector('.desktop-status-bar');
+            const statusBarHeight = statusBar ? statusBar.offsetHeight : 24;
+            const screenPadding = 8; // Padding from screen-content
+            win.style.width = `calc(100% - ${screenPadding * 2}px)`;
+            win.style.height = `calc(100% - ${statusBarHeight + screenPadding}px)`;
+            win.style.left = `${screenPadding}px`;
+            win.style.top = `${screenPadding}px`;
+            win.style.bottom = `${statusBarHeight}px`;
         }
     }
 
@@ -3214,6 +3875,9 @@ class ProgramManager {
         if (win) {
             if (win.style.display === 'none' || !win.style.display) {
                 win.style.display = 'flex';
+                const pos = this.getNextMdiPosition();
+                win.style.left = `${pos.left}px`;
+                win.style.top = `${pos.top}px`;
                 win.style.zIndex = ++this.zIndex;
                 this.setupWindowDrag(win);
                 this.setupSingleWindowControls(win);
@@ -3289,7 +3953,7 @@ class ProgramManager {
         titlebar.dataset.dragSetup = 'true';
 
         let isDragging = false;
-        let startX, startY, initialLeft, initialTop;
+        let startX, startY, initialLeft, initialTop, offsetX, offsetY;
 
         titlebar.addEventListener('mousedown', (e) => {
             // Don't drag if clicking on buttons or system menu
@@ -3300,15 +3964,31 @@ class ProgramManager {
                 return;
             }
             isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
             
-            // Get current position relative to screen content
+            // Calculate offset from mouse position to window's top-left corner
             const rect = win.getBoundingClientRect();
-            const screenContent = document.querySelector('.screen-content');
-            const screenRect = screenContent.getBoundingClientRect();
-            initialLeft = rect.left - screenRect.left;
-            initialTop = rect.top - screenRect.top;
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            
+            // Get the parent container for positioning
+            let parentContainer;
+            if (win.classList.contains('mdi-child')) {
+                parentContainer = win.closest('.program-manager-content');
+            } else {
+                // Standalone windows are positioned relative to .win31-desktop
+                parentContainer = win.closest('.win31-desktop') || document.querySelector('.win31-desktop');
+            }
+            
+            if (parentContainer) {
+                const parentRect = parentContainer.getBoundingClientRect();
+                // Calculate initial position relative to parent
+                initialLeft = rect.left - parentRect.left;
+                initialTop = rect.top - parentRect.top;
+            } else {
+                // Fallback to current style values
+                initialLeft = parseFloat(win.style.left) || 0;
+                initialTop = parseFloat(win.style.top) || 0;
+            }
             
             this.focusWindow(win);
             e.preventDefault();
@@ -3318,19 +3998,26 @@ class ProgramManager {
             if (!isDragging) return;
             e.preventDefault();
             
-            const screenContent = document.querySelector('.screen-content');
-            const screenRect = screenContent.getBoundingClientRect();
+            // Get the parent container for positioning
+            let parentContainer;
+            if (win.classList.contains('mdi-child')) {
+                parentContainer = win.closest('.program-manager-content');
+            } else {
+                // Standalone windows are positioned relative to .win31-desktop
+                parentContainer = win.closest('.win31-desktop') || document.querySelector('.win31-desktop');
+            }
             
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
+            if (!parentContainer) return;
             
-            let newLeft = initialLeft + dx;
-            let newTop = initialTop + dy;
+            const parentRect = parentContainer.getBoundingClientRect();
             
-            // Constrain to screen bounds
-            const maxX = screenContent.offsetWidth - win.offsetWidth;
-            const maxY = screenContent.offsetHeight - win.offsetHeight;
+            // Calculate new position: mouse position minus the offset, relative to parent
+            let newLeft = e.clientX - parentRect.left - offsetX;
+            let newTop = e.clientY - parentRect.top - offsetY;
             
+            // Constrain to parent bounds
+            const maxX = parentContainer.offsetWidth - win.offsetWidth;
+            const maxY = parentContainer.offsetHeight - win.offsetHeight;
             newLeft = Math.max(0, Math.min(newLeft, maxX));
             newTop = Math.max(0, Math.min(newTop, maxY));
             

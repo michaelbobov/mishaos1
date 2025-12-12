@@ -50,6 +50,27 @@
                         </div>
                     </div>
                     
+                    <!-- Desktop Clock -->
+                    <div class="desktop-clock window" id="desktop-clock">
+                        <div class="window-titlebar clock-titlebar">
+                            <div class="system-menu">─</div>
+                            <span class="window-title">Clock</span>
+                            <div class="window-controls">
+                                <button class="window-btn">▼</button>
+                                <button class="window-btn">▲</button>
+                            </div>
+                        </div>
+                        <div class="clock-menu-bar">
+                            <span class="clock-menu-item"><u>S</u>ettings</span>
+                        </div>
+                        <div class="clock-face">
+                            <div class="clock-center"></div>
+                            <div class="clock-hand clock-hand-hour" id="clock-hand-hour"></div>
+                            <div class="clock-hand clock-hand-minute" id="clock-hand-minute"></div>
+                            <div class="clock-hand clock-hand-second" id="clock-hand-second"></div>
+                        </div>
+                    </div>
+
                     <!-- Program Manager Window -->
                     <div class="program-manager">
                         <div class="window-titlebar">
@@ -100,124 +121,156 @@
                                     <div class="group-icon-label">Main</div>
                                 </div>
                             </div>
+                            
+                            <!-- MDI Child Windows Container -->
+                            
+                            <!-- Main Program Group Window (opens on double-click) -->
+                            <div class="program-group-window mdi-child" id="main-window" style="display: none;">
+                                <div class="window-titlebar">
+                                    <div class="system-menu">─</div>
+                                    <span class="window-title">Main</span>
+                                    <div class="window-controls">
+                                        <button class="window-btn">▼</button>
+                                        <button class="window-btn">▲</button>
+                                    </div>
+                                </div>
+                                <div class="program-group-content">
+                                    <div class="program-icon" data-app="file-manager">
+                                        <div class="app-icon file-manager-icon"></div>
+                                        <div class="program-icon-label">File<br>Manager</div>
+                                    </div>
+                                    <div class="program-icon" data-app="control-panel">
+                                        <div class="app-icon control-panel-icon"></div>
+                                        <div class="program-icon-label">Control<br>Panel</div>
+                                    </div>
+                                    <div class="program-icon" data-app="print-manager">
+                                        <div class="app-icon print-manager-icon"></div>
+                                        <div class="program-icon-label">Print<br>Manager</div>
+                                    </div>
+                                    <div class="program-icon" data-app="clipboard">
+                                        <div class="app-icon clipboard-icon"></div>
+                                        <div class="program-icon-label">Clipboard<br>Viewer</div>
+                                    </div>
+                                    <div class="program-icon" data-app="dos-prompt">
+                                        <div class="app-icon dos-icon"></div>
+                                        <div class="program-icon-label">MS-DOS<br>Prompt</div>
+                                    </div>
+                                    <div class="program-icon" data-app="setup">
+                                        <div class="app-icon setup-icon"></div>
+                                        <div class="program-icon-label">Windows<br>Setup</div>
+                                    </div>
+                                    <div class="program-icon" data-app="pif-editor">
+                                        <div class="app-icon pif-icon"></div>
+                                        <div class="program-icon-label">PIF Editor</div>
+                                    </div>
+                                    <div class="program-icon" data-app="readme">
+                                        <div class="app-icon readme-icon"></div>
+                                        <div class="program-icon-label">Read Me</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Games Program Group Window -->
+                            <div class="program-group-window mdi-child" id="games-window" style="display: none;">
+                                <div class="window-titlebar">
+                                    <div class="system-menu">─</div>
+                                    <span class="window-title">Games</span>
+                                    <div class="window-controls">
+                                        <button class="window-btn">▼</button>
+                                        <button class="window-btn">▲</button>
+                                    </div>
+                                </div>
+                                <div class="program-group-content">
+                                    <div class="program-icon" data-app="minesweeper">
+                                        <div class="app-icon minesweeper-icon"></div>
+                                        <div class="program-icon-label">Minesweeper</div>
+                                    </div>
+                                    <div class="program-icon" data-app="skifree">
+                                        <div class="app-icon skifree-icon"></div>
+                                        <div class="program-icon-label">SkiFree</div>
+                                    </div>
+                                    <div class="program-icon" data-app="solitaire">
+                                        <div class="app-icon solitaire-icon"></div>
+                                        <div class="program-icon-label">Solitaire</div>
+                                    </div>
+                                    <div class="program-icon" data-app="doom">
+                                        <div class="app-icon doom-icon"></div>
+                                        <div class="program-icon-label">Doom</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Accessories Program Group Window -->
+                            <div class="program-group-window mdi-child" id="accessories-window" style="display: none;">
+                                <div class="window-titlebar">
+                                    <div class="system-menu">─</div>
+                                    <span class="window-title">Accessories</span>
+                                    <div class="window-controls">
+                                        <button class="window-btn">▼</button>
+                                        <button class="window-btn">▲</button>
+                                    </div>
+                                </div>
+                                <div class="program-group-content">
+                                    <div class="program-icon" data-app="write">
+                                        <div class="app-icon write-icon"></div>
+                                        <div class="program-icon-label">Write</div>
+                                    </div>
+                                    <div class="program-icon" data-app="paintbrush">
+                                        <div class="app-icon paintbrush-icon"></div>
+                                        <div class="program-icon-label">Paintbrush</div>
+                                    </div>
+                                    <div class="program-icon" data-app="terminal">
+                                        <div class="app-icon terminal-icon"></div>
+                                        <div class="program-icon-label">Terminal</div>
+                                    </div>
+                                    <div class="program-icon" data-app="notepad">
+                                        <div class="app-icon notepad-icon"></div>
+                                        <div class="program-icon-label">Notepad</div>
+                                    </div>
+                                    <div class="program-icon" data-app="recorder">
+                                        <div class="app-icon recorder-icon"></div>
+                                        <div class="program-icon-label">Recorder</div>
+                                    </div>
+                                    <div class="program-icon" data-app="calendar">
+                                        <div class="app-icon calendar-icon"></div>
+                                        <div class="program-icon-label">Calendar</div>
+                                    </div>
+                                    <div class="program-icon" data-app="calculator">
+                                        <div class="app-icon calculator-icon"></div>
+                                        <div class="program-icon-label">Calculator</div>
+                                    </div>
+                                    <div class="program-icon" data-app="clock">
+                                        <div class="app-icon clock-icon"></div>
+                                        <div class="program-icon-label">Clock</div>
+                                    </div>
+                                    <div class="program-icon" data-app="object-packager">
+                                        <div class="app-icon packager-icon"></div>
+                                        <div class="program-icon-label">Object<br>Packager</div>
+                                    </div>
+                                    <div class="program-icon" data-app="character-map">
+                                        <div class="app-icon charmap-icon"></div>
+                                        <div class="program-icon-label">Character Map</div>
+                                    </div>
+                                    <div class="program-icon" data-app="media-player">
+                                        <div class="app-icon mediaplayer-icon"></div>
+                                        <div class="program-icon-label">Media Player</div>
+                                    </div>
+                                    <div class="program-icon" data-app="sound-recorder">
+                                        <div class="app-icon soundrec-icon"></div>
+                                        <div class="program-icon-label">Sound<br>Recorder</div>
+                                    </div>
+                                    <div class="program-icon" data-app="cardfile">
+                                        <div class="app-icon cardfile-icon"></div>
+                                        <div class="program-icon-label">Cardfile</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                         </div>
                     </div>
 
-                    <!-- System Menu Dropdown (shared) -->
-                    <div class="system-menu-dropdown" id="system-menu-dropdown" style="display: none;">
-                        <div class="system-menu-item disabled"><u>R</u>estore</div>
-                        <div class="system-menu-item disabled"><u>M</u>ove</div>
-                        <div class="system-menu-item"><u>S</u>ize</div>
-                        <div class="system-menu-item" data-action="minimize">Minimize</div>
-                        <div class="system-menu-item" data-action="maximize">Maximize</div>
-                        <div class="system-menu-separator"></div>
-                        <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
-                        <div class="system-menu-separator"></div>
-                        <div class="system-menu-item">Next<span class="shortcut">Ctrl+F6</span></div>
-                    </div>
-
-                    <!-- Desktop Icon Context Menu -->
-                    <div class="system-menu-dropdown" id="desktop-icon-menu" style="display: none;">
-                        <div class="system-menu-item" data-action="restore"><u>R</u>estore</div>
-                        <div class="system-menu-item" data-action="move"><u>M</u>ove</div>
-                        <div class="system-menu-item disabled"><u>S</u>ize</div>
-                        <div class="system-menu-item disabled" data-action="minimize">Minimize</div>
-                        <div class="system-menu-item" data-action="maximize">Maximize</div>
-                        <div class="system-menu-separator"></div>
-                        <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
-                        <div class="system-menu-separator"></div>
-                        <div class="system-menu-item" data-action="switch-to">Switch To...<span class="shortcut">Ctrl+Esc</span></div>
-                    </div>
-
-                    <!-- Taskbar Item Context Menu -->
-                    <div class="system-menu-dropdown" id="taskbar-item-menu" style="display: none;">
-                        <div class="system-menu-item" data-action="restore"><u>R</u>estore</div>
-                        <div class="system-menu-item disabled"><u>M</u>ove</div>
-                        <div class="system-menu-item disabled"><u>S</u>ize</div>
-                        <div class="system-menu-item disabled" data-action="minimize">Minimize</div>
-                        <div class="system-menu-item disabled" data-action="maximize">Maximize</div>
-                        <div class="system-menu-separator"></div>
-                        <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
-                        <div class="system-menu-separator"></div>
-                        <div class="system-menu-item" data-action="switch-to">Switch To...<span class="shortcut">Ctrl+Esc</span></div>
-                    </div>
-
-                    <!-- Main Program Group Window (opens on double-click) -->
-                    <div class="program-group-window" id="main-window" style="display: none;">
-                        <div class="window-titlebar">
-                            <div class="system-menu">─</div>
-                            <span class="window-title">Main</span>
-                            <div class="window-controls">
-                                <button class="window-btn">▼</button>
-                                <button class="window-btn">▲</button>
-                            </div>
-                        </div>
-                        <div class="program-group-content">
-                            <div class="program-icon" data-app="file-manager">
-                                <div class="app-icon file-manager-icon"></div>
-                                <div class="program-icon-label">File<br>Manager</div>
-                            </div>
-                            <div class="program-icon" data-app="control-panel">
-                                <div class="app-icon control-panel-icon"></div>
-                                <div class="program-icon-label">Control<br>Panel</div>
-                            </div>
-                            <div class="program-icon" data-app="print-manager">
-                                <div class="app-icon print-manager-icon"></div>
-                                <div class="program-icon-label">Print<br>Manager</div>
-                            </div>
-                            <div class="program-icon" data-app="clipboard">
-                                <div class="app-icon clipboard-icon"></div>
-                                <div class="program-icon-label">Clipboard<br>Viewer</div>
-                            </div>
-                            <div class="program-icon" data-app="dos-prompt">
-                                <div class="app-icon dos-icon"></div>
-                                <div class="program-icon-label">MS-DOS<br>Prompt</div>
-                            </div>
-                            <div class="program-icon" data-app="setup">
-                                <div class="app-icon setup-icon"></div>
-                                <div class="program-icon-label">Windows<br>Setup</div>
-                            </div>
-                            <div class="program-icon" data-app="pif-editor">
-                                <div class="app-icon pif-icon"></div>
-                                <div class="program-icon-label">PIF Editor</div>
-                            </div>
-                            <div class="program-icon" data-app="readme">
-                                <div class="app-icon readme-icon"></div>
-                                <div class="program-icon-label">Read Me</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Games Program Group Window -->
-                    <div class="program-group-window" id="games-window" style="display: none;">
-                        <div class="window-titlebar">
-                            <div class="system-menu">─</div>
-                            <span class="window-title">Games</span>
-                            <div class="window-controls">
-                                <button class="window-btn">▼</button>
-                                <button class="window-btn">▲</button>
-                            </div>
-                        </div>
-                        <div class="program-group-content">
-                            <div class="program-icon" data-app="minesweeper">
-                                <div class="app-icon minesweeper-icon"></div>
-                                <div class="program-icon-label">Minesweeper</div>
-                            </div>
-                            <div class="program-icon" data-app="skifree">
-                                <div class="app-icon skifree-icon"></div>
-                                <div class="program-icon-label">SkiFree</div>
-                            </div>
-                            <div class="program-icon" data-app="solitaire">
-                                <div class="app-icon solitaire-icon"></div>
-                                <div class="program-icon-label">Solitaire</div>
-                            </div>
-                            <div class="program-icon" data-app="doom">
-                                <div class="app-icon doom-icon"></div>
-                                <div class="program-icon-label">Doom</div>
-                            </div>
-                        </div>
-                    </div>
-
+                    <!-- Application Windows (standalone, opened from Program Manager) -->
+                    
                     <!-- SkiFree Game Window -->
                     <div class="application-window window" id="skifree-app" style="display: none;">
                         <div class="window-titlebar">
@@ -257,8 +310,8 @@
                                     <span id="doom-health">Health: 100</span>
                                     <span id="doom-ammo">Ammo: 30</span>
                                     <span id="doom-score">Score: 0</span>
-                                <span id="doom-level">Level: 1</span>
-                                <span id="doom-weapon">Weapon: Pistol</span>
+                                    <span id="doom-level">Level: 1</span>
+                                    <span id="doom-weapon">Weapon: Pistol</span>
                                 </div>
                                 <div class="doom-actions">
                                     <button class="doom-btn" id="doom-restart">Restart</button>
@@ -335,37 +388,6 @@
                         </div>
                     </div>
 
-                    <!-- Quill AI Application Window -->
-                    <div class="application-window window" id="ai-assistant-app" style="display: none;">
-                        <div class="window-titlebar">
-                            <div class="system-menu">─</div>
-                            <span class="window-title">Quill AI</span>
-                            <div class="window-controls">
-                                <button class="window-btn">▼</button>
-                                <button class="window-btn">▲</button>
-                            </div>
-                        </div>
-                        <div class="window-content">
-                            <div class="ai-assistant-content">
-                                <div class="ai-header">
-                                    <div class="ai-logo">
-                                            <img src="assets/quill.png" alt="Quill AI" class="quill-logo-img">
-                                    </div>
-                                    <div class="ai-title">Quill AI</div>
-                                </div>
-                                <div class="ai-chat-area" id="ai-chat-area">
-                                    <div class="ai-message ai-system">
-                                        <div class="message-text">Welcome! I'm Quill AI, your retro AI assistant. Ask me anything or search the web.</div>
-                                    </div>
-                                </div>
-                                <div class="ai-input-area">
-                                    <input type="text" class="ai-input" id="ai-input" placeholder="Type your question or search query..." />
-                                    <button class="ai-send-btn" id="ai-send-btn">Send</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Minesweeper Application Window -->
                     <div class="application-window window" id="minesweeper-app" style="display: none;">
                         <div class="window-titlebar">
@@ -390,6 +412,108 @@
                         </div>
                     </div>
 
+                    <!-- Read Me Application Window -->
+                    <div class="application-window window" id="readme-app" style="display: none;">
+                        <div class="window-titlebar">
+                            <div class="system-menu">─</div>
+                            <span class="window-title">Read Me</span>
+                            <div class="window-controls">
+                                <button class="window-btn">▼</button>
+                                <button class="window-btn">▲</button>
+                            </div>
+                        </div>
+                        <div class="window-content">
+                            <div style="padding: 16px; font-family: 'MS Sans Serif', Tahoma, sans-serif; font-size: 12px; line-height: 1.6; color: var(--win-text); overflow-y: auto; height: 100%;">
+                                <p style="margin-bottom: 12px; font-style: italic;">
+                                    Oh, glad you found this little easter egg!
+                                </p>
+                                <h2 style="margin-bottom: 12px; font-size: 14px; font-weight: bold;">About Me</h2>
+                                <p style="margin-bottom: 12px;">
+                                    This space is my playground—a digital time capsule that merges vintage computer systems with my own creative vision. I built this portfolio to feel nostalgic yet personal, a place where you can get a sense of who I am while wandering through the eras of retro computing.
+                                </p>
+                                <p style="margin-bottom: 12px;">
+                                    I'm Russian American with a deep love for Japan, which you'll notice in the music, visual style, and atmosphere of the project. More than anything, I'm a maker. I love building things—especially with Cursor—and this project reflects that. It's not just design; it's hands-on experimentation, development, and world-building to bring this multi-era retro OS to life.
+                                </p>
+                                <p style="margin-bottom: 12px;">
+                                    There's a lot to explore: poke around the desktop, try out the retro-styled AI chat, dive into different system eras by clicking the year in the bottom bar, check out apps inspired by Windows 3.1, play a few games, or even open the VHS player for music and surprises.
+                                </p>
+                                <p>
+                                    I hope you enjoy exploring this little time capsule as much as I enjoyed creating it.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Menu Dropdown (shared) -->
+                    <div class="system-menu-dropdown" id="system-menu-dropdown" style="display: none;">
+                        <div class="system-menu-item disabled"><u>R</u>estore</div>
+                        <div class="system-menu-item disabled"><u>M</u>ove</div>
+                        <div class="system-menu-item"><u>S</u>ize</div>
+                        <div class="system-menu-item" data-action="minimize">Minimize</div>
+                        <div class="system-menu-item" data-action="maximize">Maximize</div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item">Next<span class="shortcut">Ctrl+F6</span></div>
+                    </div>
+
+                    <!-- Desktop Icon Context Menu -->
+                    <div class="system-menu-dropdown" id="desktop-icon-menu" style="display: none;">
+                        <div class="system-menu-item" data-action="restore"><u>R</u>estore</div>
+                        <div class="system-menu-item" data-action="move"><u>M</u>ove</div>
+                        <div class="system-menu-item disabled"><u>S</u>ize</div>
+                        <div class="system-menu-item disabled" data-action="minimize">Minimize</div>
+                        <div class="system-menu-item" data-action="maximize">Maximize</div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item" data-action="switch-to">Switch To...<span class="shortcut">Ctrl+Esc</span></div>
+                    </div>
+
+                    <!-- Taskbar Item Context Menu -->
+                    <div class="system-menu-dropdown" id="taskbar-item-menu" style="display: none;">
+                        <div class="system-menu-item" data-action="restore"><u>R</u>estore</div>
+                        <div class="system-menu-item disabled"><u>M</u>ove</div>
+                        <div class="system-menu-item disabled"><u>S</u>ize</div>
+                        <div class="system-menu-item disabled" data-action="minimize">Minimize</div>
+                        <div class="system-menu-item disabled" data-action="maximize">Maximize</div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item" data-action="close"><u>C</u>lose<span class="shortcut">Alt+F4</span></div>
+                        <div class="system-menu-separator"></div>
+                        <div class="system-menu-item" data-action="switch-to">Switch To...<span class="shortcut">Ctrl+Esc</span></div>
+                    </div>
+
+                    <!-- Quill AI Application Window (Desktop App - outside Program Manager) -->
+                    <div class="application-window window" id="ai-assistant-app" style="display: none;">
+                        <div class="window-titlebar">
+                            <div class="system-menu">─</div>
+                            <span class="window-title">Quill AI</span>
+                            <div class="window-controls">
+                                <button class="window-btn">▼</button>
+                                <button class="window-btn">▲</button>
+                            </div>
+                        </div>
+                        <div class="window-content">
+                            <div class="ai-assistant-content">
+                                <div class="ai-header">
+                                    <div class="ai-logo">
+                                        <img src="assets/quill.png" alt="Quill AI" class="quill-logo-img">
+                                    </div>
+                                    <div class="ai-title">Quill AI</div>
+                                </div>
+                                <div class="ai-chat-area" id="ai-chat-area">
+                                    <div class="ai-message ai-system">
+                                        <div class="message-text">Welcome! I'm Quill AI, your retro AI assistant. Ask me anything or search the web.</div>
+                                    </div>
+                                </div>
+                                <div class="ai-input-area">
+                                    <input type="text" class="ai-input" id="ai-input" placeholder="Type your question or search query..." />
+                                    <button class="ai-send-btn" id="ai-send-btn">Send</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="scanlines"></div>
                     <div class="screen-flicker"></div>
                 </div>
@@ -398,7 +522,7 @@
         <!-- VHS tape hotspot overlay (positioned over VHS graphic on monitor image) -->
         <button id="vhs-hotspot" aria-label="Play VHS track"></button>
     </div>
-    
+
     <script src="script.js"></script>
 </body>
 </html>

@@ -1,6 +1,14 @@
-# Retro Japanese Portfolio
+# MishaOS
 
-A product design portfolio with a retro Japanese aesthetic, featuring content displayed inside a CRT monitor screen.
+A Windows 3.1-inspired operating system interface with retro games and interactive elements.
+
+## About Me
+
+This is my playground—a digital time capsule that blends past computer systems with my creative vision. My goal for this portfolio is to show who I am and create a nostalgic journey through retro computing, while showcasing my passion for making things.
+
+I'm Russian American with a deep love for Japan, as you can see reflected in the music selection and the aesthetic of this project. I'm really passionate about creating stuff—I love making with Cursor and I'm not just a designer, I'm a maker. This project demonstrates that passion, combining design sensibilities with hands-on development to bring this retro computing experience to life.
+
+I hope you enjoy exploring this time capsule as much as I enjoyed creating it.
 
 ## Setup
 
