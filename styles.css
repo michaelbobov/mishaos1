@@ -43,10 +43,55 @@ body {
     width: 100vw;
     height: 100vh;
     position: relative;
-    overflow: hidden;
+    overflow: visible; /* Changed to visible so hotspot can be seen outside viewport */
     background-image: url('assets/monitor.png');
     background-size: cover;
     background-position: center;
+}
+
+#vhs-hotspot {
+    position: absolute !important;
+    /* Positioned over the VHS deck at bottom-right of monitor.png */
+    /* Uses vw/vh units to scale with the monitor background image */
+    right: 0vw !important;
+    bottom: 6vh !important;
+    width: calc(22vw + 5px) !important;
+    height: calc(9vw - 5px) !important;
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    cursor: pointer !important;
+    z-index: 99999 !important;
+    pointer-events: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    /* Reset button defaults */
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    outline: none !important;
+    text-indent: -9999px;
+    overflow: visible !important;
+    /* Remove any box shadow or other visual effects */
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+}
+
+.vhs-hotspot:hover {
+    background: transparent !important;
+    border: none !important;
+}
+
+#vhs-hotspot:focus {
+    outline: none !important;
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 .crt-monitor {

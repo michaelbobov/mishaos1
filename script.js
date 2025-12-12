@@ -556,8 +556,221 @@ class ProgramManager {
         this.setupDesktopIcons();
         this.setupStatusBarControls();
         this.setupDesktopClickDeselect();
+        this.setupVhsHotspot();
         this.updateStatusBar();
         setInterval(() => this.updateStatusBar(), 1000);
+    }
+
+    setupVhsHotspot() {
+        const hotspot = document.getElementById('vhs-hotspot');
+        if (!hotspot) return;
+
+        this.vhsPlayer = {
+            playlist: [],
+            lastIndex: -1,
+            audio: null,
+            insertSound: null,
+            isPlaying: false
+        };
+
+        // Load the VHS insertion sound effect
+        this.vhsPlayer.insertSound = new Audio('sounds/VHS Tape Going Into VHS Player sound effect.mp3');
+        this.vhsPlayer.insertSound.volume = 0.4;
+        this.vhsPlayer.insertSound.preload = 'auto';
+
+        // Set up the playlist with the songs
+        this.setVhsPlaylist([
+            'sounds/Billy Ray Cyrus - Achy Breaky Heart  Lyrics.mp3',
+            'sounds/En Vogue - My Lovin\' (You\'re Never Gonna Get It) (Official Music Video) [HD].mp3',
+            'sounds/Kome Kome Club - True Heart  kimi ga iru dakede.mp3',
+            'sounds/SNAP! - Rhythm Is A Dancer (Official Music Video).mp3',
+            'sounds/Алла Пугачёва - Беглец (Official Video) [Рождественские встречи].mp3',
+            'sounds/Группа крови.mp3',
+            'sounds/悲しみは雪のように浜田 省吾.mp3'
+        ]);
+
+        hotspot.addEventListener('click', () => {
+            if (this.vhsPlayer.isPlaying) {
+                // If playing, stop it with VHS sound
+                this.stopVhsWithSound();
+            } else {
+                // If not playing, start with VHS sound
+                this.playVhsInsertSound();
+            }
+        });
+    }
+
+    playVhsInsertSound() {
+        if (!this.vhsPlayer || !this.vhsPlayer.insertSound) return;
+
+        try {
+            // Wait for metadata to load to get duration
+            if (this.vhsPlayer.insertSound.readyState < 2) {
+                this.vhsPlayer.insertSound.addEventListener('loadedmetadata', () => {
+                    this.playVhsInsertSoundFromMiddle(true);
+                });
+                this.vhsPlayer.insertSound.load();
+                return;
+            }
+            this.playVhsInsertSoundFromMiddle(true);
+        } catch (e) {
+            console.log('Error playing VHS sound:', e);
+            // If sound fails, just play music
+            this.playRandomVhsTrack();
+        }
+    }
+
+    stopVhsWithSound() {
+        // First stop the music (with fade out)
+        this.stopVhsTrack();
+        
+        // Then play VHS sound after a short delay to let fade out start
+        setTimeout(() => {
+            if (!this.vhsPlayer || !this.vhsPlayer.insertSound) return;
+
+            try {
+                // Wait for metadata to load to get duration
+                if (this.vhsPlayer.insertSound.readyState < 2) {
+                    this.vhsPlayer.insertSound.addEventListener('loadedmetadata', () => {
+                        this.playVhsInsertSoundFromMiddle(false);
+                    });
+                    this.vhsPlayer.insertSound.load();
+                    return;
+                }
+                this.playVhsInsertSoundFromMiddle(false);
+            } catch (e) {
+                console.log('Error playing VHS sound:', e);
+            }
+        }, 100); // Small delay to let fade out begin
+    }
+
+    playVhsInsertSoundFromMiddle(shouldPlayMusic) {
+        try {
+            const duration = this.vhsPlayer.insertSound.duration;
+            // Start from middle of the sound (about 40% through)
+            const startTime = duration * 0.4;
+            this.vhsPlayer.insertSound.currentTime = startTime;
+            this.vhsPlayer.insertSound.play().then(() => {
+                // Stop after 2 seconds for going in, 1.5 seconds for taking out
+                const playDuration = shouldPlayMusic ? 2000 : 1500;
+                setTimeout(() => {
+                    this.vhsPlayer.insertSound.pause();
+                    this.vhsPlayer.insertSound.currentTime = 0;
+                    if (shouldPlayMusic) {
+                        // Start playing music after sound effect
+                        this.playRandomVhsTrack();
+                    }
+                    // If shouldPlayMusic is false, music was already stopped, just play the sound
+                }, playDuration);
+            }).catch(e => {
+                console.log('Error playing VHS sound:', e);
+                if (shouldPlayMusic) {
+                    this.playRandomVhsTrack();
+                }
+            });
+        } catch (e) {
+            console.log('Error playing VHS sound from middle:', e);
+            if (shouldPlayMusic) {
+                this.playRandomVhsTrack();
+            }
+        }
+    }
+
+    stopVhsTrack() {
+        if (this.vhsPlayer && this.vhsPlayer.audio) {
+            const audio = this.vhsPlayer.audio;
+            // Fade out before stopping
+            const fadeOutDuration = 500; // 0.5 seconds fade out
+            const fadeOutSteps = 20;
+            const fadeOutInterval = fadeOutDuration / fadeOutSteps;
+            let currentStep = 0;
+            const startVolume = audio.volume;
+
+            const fadeOutIntervalId = setInterval(() => {
+                currentStep++;
+                const targetVolume = startVolume * (1 - currentStep / fadeOutSteps);
+                audio.volume = Math.max(targetVolume, 0);
+                
+                if (currentStep >= fadeOutSteps) {
+                    clearInterval(fadeOutIntervalId);
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = 1; // Reset volume for next play
+                }
+            }, fadeOutInterval);
+        }
+        this.vhsPlayer.isPlaying = false;
+    }
+
+    setVhsPlaylist(tracks) {
+        if (!Array.isArray(tracks) || tracks.length === 0) {
+            console.warn('VHS playlist is empty or invalid. Provide an array of audio URLs.');
+            return;
+        }
+        this.vhsPlayer = this.vhsPlayer || { audio: null };
+        this.vhsPlayer.playlist = tracks.slice();
+        this.vhsPlayer.lastIndex = -1;
+    }
+
+    playRandomVhsTrack() {
+        if (!this.vhsPlayer || !Array.isArray(this.vhsPlayer.playlist) || this.vhsPlayer.playlist.length === 0) {
+            console.warn('No VHS playlist set. Call setVhsPlaylist([...]) with your tracks.');
+            return;
+        }
+
+        // Stop any current audio
+        if (this.vhsPlayer.audio) {
+            this.vhsPlayer.audio.pause();
+            this.vhsPlayer.audio.currentTime = 0;
+        }
+
+        let idx = 0;
+        const { playlist, lastIndex } = this.vhsPlayer;
+        if (playlist.length > 1) {
+            do {
+                idx = Math.floor(Math.random() * playlist.length);
+            } while (idx === lastIndex);
+        }
+        this.vhsPlayer.lastIndex = idx;
+
+        const src = playlist[idx];
+        const audio = new Audio(src);
+        this.vhsPlayer.audio = audio;
+
+        // Fade in functionality
+        audio.volume = 0;
+        const fadeInDuration = 2000; // 2 seconds fade in
+        const fadeInSteps = 50;
+        const fadeInInterval = fadeInDuration / fadeInSteps;
+        let currentStep = 0;
+
+        audio.addEventListener('ended', () => {
+            this.vhsPlayer.audio = null;
+            this.vhsPlayer.isPlaying = false;
+            // Auto-play next track when current ends (ensures songs alternate)
+            if (this.vhsPlayer.playlist && this.vhsPlayer.playlist.length > 0) {
+                this.playRandomVhsTrack();
+            }
+        });
+
+        audio.play().then(() => {
+            this.vhsPlayer.isPlaying = true;
+            // Start fade in
+            const fadeInIntervalId = setInterval(() => {
+                currentStep++;
+                const targetVolume = currentStep / fadeInSteps;
+                audio.volume = Math.min(targetVolume, 1);
+                
+                if (currentStep >= fadeInSteps) {
+                    clearInterval(fadeInIntervalId);
+                    audio.volume = 1; // Ensure it's at full volume
+                }
+            }, fadeInInterval);
+        }).catch(err => {
+            console.error('Error playing VHS track:', err);
+            this.vhsPlayer.audio = null;
+            this.vhsPlayer.isPlaying = false;
+        });
     }
 
     setupDesktopClickDeselect() {
