@@ -1,54 +1,76 @@
-# MishaOS
+# MishaOS - Retro Operating System Portfolio
 
-A retro operating system interface inspired by classic computing with games and interactive elements.
-
-## About Me
-
-This is my playground—a digital time capsule that blends past computer systems with my creative vision. My goal for this portfolio is to show who I am and create a nostalgic journey through retro computing, while showcasing my passion for making things.
-
-I'm Russian American with a deep love for Japan, as you can see reflected in the music selection and the aesthetic of this project. I'm really passionate about creating stuff—I love making with Cursor and I'm not just a designer, I'm a maker. This project demonstrates that passion, combining design sensibilities with hands-on development to bring this retro computing experience to life.
-
-I hope you enjoy exploring this time capsule as much as I enjoyed creating it.
-
-## Setup
-
-1. **Add your monitor image**: Place your CRT monitor room background image as `assets/monitor.png` (update the filename in `styles.css` line 17 if you choose a different name)
-
-2. **Position the content**: The content area needs to be positioned precisely over the monitor screen in your image. You have two options:
-
-   **Option A - Quick Adjustment:**
-   - Open `index.html` in a browser
-   - Press the **'P' key** to toggle a red outline showing the content area
-   - Adjust the CSS variables in `styles.css` (in the `:root` section at the top) to move the content:
-     - `--screen-width` and `--screen-height`: Size of the content area
-     - `--screen-top`: Vertical position (percentage from top)
-     - `--screen-left`: Horizontal position (percentage from left, will be centered)
-     - `--screen-max-width` and `--screen-max-height`: Maximum dimensions
-
-   **Option B - Visual Helper Tool:**
-   - Open `position-helper.html` in a browser alongside `index.html`
-   - Use the sliders to adjust the position visually
-   - Copy the generated CSS and paste it into `styles.css`
-
-3. Open `index.html` in a web browser
-
-## Customization
-
-- **Background Image**: Replace `monitor-image.jpg` with your own image (update `styles.css` line 17)
-- **Monitor Screen Position**: Adjust the CSS variables in the `:root` section of `styles.css`
-- **Content**: Edit `index.html` to add your own projects, text, and links
-- **Colors**: Modify the green (#00ff00) color scheme in `styles.css` to match your aesthetic
+A nostalgic retro operating system interface built with HTML, CSS, and JavaScript. Experience the look and feel of classic Windows systems from the 1990s.
 
 ## Features
 
-- Retro CRT monitor screen effects (scanlines, flicker)
-- Smooth scrolling navigation
-- Responsive design
-- Retro Japanese typography
-- Glowing text effects
-- Position helper (press 'P' key to see content area outline)
+- Retro desktop environment with Program Manager
+- Classic applications (Minesweeper, Solitaire, SkiFree, Doom)
+- Quill AI assistant with multiple modes
+- VHS player for music playback
+- Multiple year themes (1985, 1992, 1995, 1998, 2000, 2001)
 
-## Browser Support
+## Deployment on Vercel
 
-Works best in modern browsers that support CSS3 features and CSS custom properties (variables).
+This project is configured to work with Vercel serverless functions for secure API key handling.
 
+### Setup Instructions
+
+1. **Install Vercel CLI** (if not already installed):
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Deploy to Vercel**:
+   ```bash
+   vercel
+   ```
+
+3. **Set Environment Variable**:
+   - Go to your Vercel project dashboard
+   - Navigate to Settings → Environment Variables
+   - Add a new variable:
+     - **Name**: `OPENAI_API_KEY`
+     - **Value**: Your OpenAI API key (starts with `sk-`)
+     - **Environment**: Production, Preview, Development (select all)
+
+4. **Redeploy** (if needed):
+   ```bash
+   vercel --prod
+   ```
+
+### How It Works
+
+- The frontend makes API calls to `/api/openai` (a Vercel serverless function)
+- The serverless function (`api/openai.js`) securely handles the OpenAI API key
+- Users don't need to enter their own API keys - they use yours securely
+
+### File Structure
+
+```
+├── api/
+│   └── openai.js          # Vercel serverless function (API proxy)
+├── assets/                 # Images and icons
+├── sounds/                 # Audio files
+├── index.html              # Main HTML file
+├── script.js               # Main JavaScript
+└── styles.css              # Styles
+```
+
+### Local Development
+
+To run locally:
+
+```bash
+# Using Node.js http-server
+npx http-server -p 8000
+
+# Or using Python
+python -m http.server 8000
+```
+
+Note: The API proxy will only work when deployed to Vercel. For local development, you'll need to set up a local proxy or modify the code temporarily.
+
+## License
+
+MIT

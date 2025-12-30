@@ -9,8 +9,12 @@ class ProgramManager {
         this.masterVolume = 0.5; // Master volume (0.0 to 1.0) - default 50%
         this.isMuted = false;
         this.audioElements = []; // Track all audio elements
-        this.openaiApiKey = 'YOUR_OPENAI_API_KEY_HERE'; // Replace with your OpenAI API key
+        // API calls: use Vercel serverless function in production, direct API in local dev
+        this.apiProxyUrl = '/api/openai'; // Vercel serverless function endpoint
         this.selectedYear = parseInt(localStorage.getItem('selectedYear') || '1992'); // Default to 1992
+        this.isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        // For local development, allow users to enter their own API key
+        this.openaiApiKey = localStorage.getItem('openaiApiKey') || null;
         this.init();
     }
 
@@ -652,6 +656,10 @@ class ProgramManager {
         const pageTurnSound = new Audio('sounds/Book Page Turn Flip Sound Effect.mp3');
         const baseVolume = 0.6;
         pageTurnSound.preload = 'auto';
+        // Handle potential CORS or loading errors
+        pageTurnSound.addEventListener('error', (e) => {
+            console.warn('Failed to load page turn sound:', e);
+        });
         pageTurnSound.load();
         
         // Register with volume system
@@ -669,7 +677,11 @@ class ProgramManager {
             soundDuration = pageTurnSound.duration;
         });
 
-        stickyNoteWrapper.addEventListener('mouseenter', () => {
+        // Use the smaller clickable area instead of the whole wrapper
+        const clickableArea = stickyNoteWrapper.querySelector('.sticky-note-clickable-area');
+        const targetElement = clickableArea || stickyNoteWrapper;
+        
+        targetElement.addEventListener('mouseenter', () => {
             if (isPlaying || soundDuration === 0) return;
             
             const middleStart = Math.max(0, (soundDuration / 2) - 0.1);
@@ -706,6 +718,10 @@ class ProgramManager {
         this.vhsPlayer.insertSound = new Audio('sounds/VHS Tape Going Into VHS Player sound effect.mp3');
         const insertSoundBaseVolume = 0.4;
         this.vhsPlayer.insertSound.preload = 'auto';
+        // Handle potential CORS or loading errors
+        this.vhsPlayer.insertSound.addEventListener('error', (e) => {
+            console.warn('Failed to load VHS insert sound:', e);
+        });
         
         // Register with volume system
         this.audioElements.push({
@@ -1281,6 +1297,57 @@ class ProgramManager {
         this.focusWindow(aiApp);
     }
 
+    // Helper method to call OpenAI API
+    // Uses Vercel proxy in production, direct API in local dev (if API key is set)
+    async callOpenAI(endpoint, body) {
+        // In local dev, use direct API if key is available
+        if (this.isLocalDev && this.openaiApiKey) {
+            try {
+                const response = await fetch(`https://api.openai.com${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.openaiApiKey}`
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: 'API request failed' }));
+                    throw new Error(error.error?.message || error.error || `API request failed with status ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        // Otherwise, use Vercel proxy (production) or show error (local dev without key)
+        try {
+            const response = await fetch(this.apiProxyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ endpoint, body })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ error: 'API request failed' }));
+                throw new Error(error.error || `API request failed with status ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            // If running locally and endpoint doesn't exist, provide helpful error
+            if (this.isLocalDev && (error.message.includes('Failed to fetch') || error.message.includes('404') || error.name === 'TypeError')) {
+                throw new Error('API key required for local development. Please enter your OpenAI API key.');
+            }
+            throw error;
+        }
+    }
+
     setupAIAssistant() {
         const aiApp = document.getElementById('ai-assistant-app');
         if (aiApp.dataset.setup) return;
@@ -1289,6 +1356,68 @@ class ProgramManager {
         const input = document.getElementById('ai-input');
         const sendBtn = document.getElementById('ai-send-btn');
         const chatArea = document.getElementById('ai-chat-area');
+        
+        if (!input || !sendBtn || !chatArea) {
+            console.error('Quill AI: Required elements not found');
+            return;
+        }
+        
+        // Show API key prompt if running locally and no key is set
+        if (this.isLocalDev && !this.openaiApiKey) {
+            const apiKeyPrompt = document.createElement('div');
+            apiKeyPrompt.className = 'ai-message ai-system';
+            apiKeyPrompt.style.marginTop = '8px';
+            apiKeyPrompt.innerHTML = `
+                <div class="message-text">
+                    <strong>🔑 API Key Required for Local Development</strong><br>
+                    <p style="margin: 8px 0;">To use Quill AI locally, please enter your OpenAI API key. It will be stored in your browser's localStorage.</p>
+                    <div style="margin: 8px 0;">
+                        <input type="password" id="api-key-input" placeholder="sk-proj-..." 
+                               style="width: 100%; padding: 6px; margin: 4px 0; font-family: monospace; background: rgba(0,0,0,0.3); border: 1px solid #808080; color: #00ff00;">
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button id="save-api-key-btn" style="padding: 6px 12px; background: var(--win-selected); color: white; border: 1px outset var(--win-bg); cursor: pointer;">Save Key</button>
+                            <a href="https://platform.openai.com/account/api-keys" target="_blank" 
+                               style="padding: 6px 12px; background: var(--win-bg); color: var(--win-text); border: 1px outset var(--win-bg); text-decoration: none; display: inline-block;">Get Your Own</a>
+                        </div>
+                        <p style="margin-top: 8px; font-size: 10px; color: #88ff88;">Key is stored locally in your browser. On Vercel, the API key is set as an environment variable.</p>
+                    </div>
+                </div>
+            `;
+            chatArea.appendChild(apiKeyPrompt);
+            
+            // Handle API key input
+            const apiKeyInput = document.getElementById('api-key-input');
+            const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+            
+            saveApiKeyBtn.addEventListener('click', () => {
+                const apiKey = apiKeyInput.value.trim();
+                if (apiKey && apiKey.startsWith('sk-')) {
+                    localStorage.setItem('openaiApiKey', apiKey);
+                    this.openaiApiKey = apiKey;
+                    apiKeyPrompt.remove();
+                    const successMsg = document.createElement('div');
+                    successMsg.className = 'ai-message ai-system';
+                    successMsg.innerHTML = '<div class="message-text"><strong>✓ API Key Saved!</strong> You can now use Quill AI.</div>';
+                    chatArea.appendChild(successMsg);
+                } else {
+                    alert('Please enter a valid OpenAI API key (should start with "sk-")');
+                }
+            });
+            
+            apiKeyInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveApiKeyBtn.click();
+                }
+            });
+        }
+        
+        // Track writing flow state
+        let waitingForWriteAnswers = false;
+        let pendingWriteQuery = null;
+        let pendingWriteFiles = [];
+        let pendingWriteUrls = [];
+        
+        // API is now handled by Vercel serverless function - no API key needed from user
         const attachBtn = document.getElementById('ai-attach-btn');
         const fileInput = document.getElementById('ai-file-input');
         const urlInput = document.getElementById('ai-url-input');
@@ -1386,6 +1515,89 @@ class ProgramManager {
             const hasAttachments = attachedFiles.length > 0 || attachedUrls.length > 0;
             
             if (!query && !hasAttachments) return;
+            
+            // If we're waiting for answers to a writing request, handle the answer
+            if (waitingForWriteAnswers) {
+                // Add user's answer to chat first
+                const userMsg = document.createElement('div');
+                userMsg.className = 'ai-message ai-user';
+                userMsg.innerHTML = `<div class="message-text">${query}</div>`;
+                chatArea.appendChild(userMsg);
+                chatArea.scrollTop = chatArea.scrollHeight;
+                
+                // Clear input
+                input.value = '';
+                
+                // Check if we have enough info now - be more lenient
+                const loadingMsg = document.createElement('div');
+                loadingMsg.className = 'ai-message ai-assistant';
+                loadingMsg.innerHTML = '<div class="message-text">Checking if I have enough information...</div>';
+                chatArea.appendChild(loadingMsg);
+                chatArea.scrollTop = chatArea.scrollHeight;
+                
+                // After user answers once, proceed with interpretation (don't ask again)
+                // We already asked questions once, now proceed with what we have
+                const hasEnoughInfo = true; // Always proceed after first answer
+                
+                if (hasEnoughInfo) {
+                    // We have enough info, proceed to write
+                    waitingForWriteAnswers = false;
+                    loadingMsg.innerHTML = '<div class="message-text">Writing in Write application...</div>';
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    
+                    // Combine original query with user's answers
+                    const fullQuery = `${pendingWriteQuery}\n\nUser's answers: ${query}`;
+                    
+                    // Get the written content
+                    const writeContent = await this.getWriteContent(fullQuery, pendingWriteFiles, pendingWriteUrls);
+                    
+                    // Get conversational response for chat
+                    await this.chatResponse(fullQuery, loadingMsg, chatArea, pendingWriteFiles, pendingWriteUrls, false);
+                    
+                    if (writeContent) {
+                        // Write to Write app
+                        await this.writeToWriteApp(writeContent, fullQuery);
+                    }
+                    
+                    // Clear pending state
+                    pendingWriteQuery = null;
+                    pendingWriteFiles = [];
+                    pendingWriteUrls = [];
+                    input.placeholder = 'Type your message...';
+                    
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    return;
+                } else {
+                    // User answered but AI thinks it needs more - proceed anyway with interpretation
+                    // Only ask questions ONCE, then proceed with best interpretation
+                    waitingForWriteAnswers = false;
+                    loadingMsg.innerHTML = '<div class="message-text">Proceeding with my interpretation...</div>';
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    
+                    // Combine original query with user's answers and proceed
+                    const fullQuery = `${pendingWriteQuery}\n\nUser's answers: ${query}\n\nWrite the content based on what you understand, using your best judgment to interpret any vague aspects.`;
+                    
+                    // Get the written content
+                    const writeContent = await this.getWriteContent(fullQuery, pendingWriteFiles, pendingWriteUrls);
+                    
+                    // Get conversational response for chat
+                    await this.chatResponse(fullQuery, loadingMsg, chatArea, pendingWriteFiles, pendingWriteUrls, false);
+                    
+                    if (writeContent) {
+                        // Write to Write app
+                        await this.writeToWriteApp(writeContent, fullQuery);
+                    }
+                    
+                    // Clear pending state
+                    pendingWriteQuery = null;
+                    pendingWriteFiles = [];
+                    pendingWriteUrls = [];
+                    input.placeholder = 'Type your message...';
+                    
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    return;
+                }
+            }
 
             // Add user message with mode indicator and attachments
             const userMsg = document.createElement('div');
@@ -1450,11 +1662,20 @@ class ProgramManager {
                 this.codeAssistant(query, loadingMsg, chatArea);
             } else {
                 // Regular chat with attachments
+                // Check if Write document already has content
+                const writeContentData = this.getWriteAppContent();
+                const isReferencingWrite = writeContentData && this.isReferencingWrite(query, writeContentData);
+                
                 // Check if this is a writing request
                 const isWritingRequest = this.detectWritingRequest(query);
                 
-                if (isWritingRequest) {
-                    // First, ask in chat if they want to use Write app
+                // If user is referencing existing Write content, work with it directly (no confirmation)
+                // This check MUST come before writing request check to avoid asking for confirmation on existing content
+                if (isReferencingWrite && writeContentData && writeContentData.text.length > 0) {
+                    // User is referencing the Write document - handle it directly, no confirmation needed
+                    await this.handleWriteDocumentRequest(query, loadingMsg, chatArea, filesToSend, urlsToSend, writeContentData);
+                } else if (isWritingRequest && (!writeContentData || writeContentData.text.length === 0)) {
+                    // New writing request - Write is empty, ask for confirmation
                     loadingMsg.innerHTML = `
                         <div class="message-text">
                             <strong>Would you like me to write this in the Write application?</strong><br>
@@ -1471,20 +1692,49 @@ class ProgramManager {
                         // Position windows side by side with equal space
                         this.positionWindowsForWrite();
                         
-                        loadingMsg.innerHTML = '<div class="message-text">Writing in Write application...</div>';
-                        
-                        // First, get the written content only (for Write app)
-                        const writeContent = await this.getWriteContent(query, filesToSend, urlsToSend);
-                        
-                        // Then, get the full conversational response (for chat)
-                        const chatResult = await this.chatResponse(query, loadingMsg, chatArea, filesToSend, urlsToSend, false);
-                        
-                        if (writeContent) {
-                            // Write to Write app
-                            await this.writeToWriteApp(writeContent, query);
-                        }
-                        
+                        // Check if we need to ask questions or can proceed directly
+                        loadingMsg.innerHTML = '<div class="message-text">Evaluating request...</div>';
                         chatArea.scrollTop = chatArea.scrollHeight;
+                        
+                        const needsQuestions = await this.checkInitialRequestNeedsQuestions(query, filesToSend, urlsToSend);
+                        
+                        if (!needsQuestions) {
+                            // User has given enough info or wants Quill to choose - proceed directly
+                            waitingForWriteAnswers = false;
+                            loadingMsg.innerHTML = '<div class="message-text">Writing in Write application...</div>';
+                            chatArea.scrollTop = chatArea.scrollHeight;
+                            
+                            // Get the written content
+                            const writeContent = await this.getWriteContent(query, filesToSend, urlsToSend);
+                            
+                            // Get conversational response for chat
+                            await this.chatResponse(query, loadingMsg, chatArea, filesToSend, urlsToSend, false);
+                            
+                            if (writeContent) {
+                                // Write to Write app
+                                await this.writeToWriteApp(writeContent, query);
+                            }
+                            
+                            input.placeholder = 'Type your message...';
+                            chatArea.scrollTop = chatArea.scrollHeight;
+                        } else {
+                            // Need to ask questions first
+                            loadingMsg.innerHTML = '<div class="message-text">Asking questions first...</div>';
+                            
+                            // Ask questions only (don't write yet)
+                            await this.askQuestionsOnly(query, loadingMsg, chatArea, filesToSend, urlsToSend);
+                            
+                            // Set flag that we're waiting for answers
+                            waitingForWriteAnswers = true;
+                            pendingWriteQuery = query;
+                            pendingWriteFiles = [...filesToSend];
+                            pendingWriteUrls = [...urlsToSend];
+                            
+                            // Update input placeholder to indicate we're waiting for answers
+                            input.placeholder = 'Answer the questions above, then I\'ll write the content...';
+                            
+                            chatArea.scrollTop = chatArea.scrollHeight;
+                        }
                     });
                     
                     noBtn.addEventListener('click', async () => {
@@ -1565,23 +1815,14 @@ IMPORTANT INSTRUCTIONS:
                 enhancedPrompt = `Create a retro pixelated image: ${prompt}. Style: 1992 video game graphics, 8-bit pixel art, low resolution 256x256 or 320x200, chunky blocky pixels, classic DOS game aesthetic, limited 16-color palette, dithering patterns, scanlines effect, CRT monitor look, pixelated texture, retro gaming style, early 1990s computer graphics`;
             }
             
-            const response = await fetch('https://api.openai.com/v1/images/generations', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.openaiApiKey}`
-                },
-                body: JSON.stringify({
-                    model: 'dall-e-3',
-                    prompt: enhancedPrompt,
-                    n: 1,
-                    size: '1024x1024',
-                    quality: 'standard',
-                    style: 'vivid'
-                })
+            const data = await this.callOpenAI('/v1/images/generations', {
+                model: 'dall-e-3',
+                prompt: enhancedPrompt,
+                n: 1,
+                size: '1024x1024',
+                quality: 'standard',
+                style: 'vivid'
             });
-
-            const data = await response.json();
             loadingMsg.remove();
 
             const aiMsg = document.createElement('div');
@@ -1626,29 +1867,20 @@ IMPORTANT INSTRUCTIONS:
 
     async webSearch(query, loadingMsg, chatArea) {
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.openaiApiKey}`
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'You are a 1992-era assistant providing search results. Your knowledge cutoff is December 1992. Only provide information, websites, and resources that existed in 1992 or earlier. Format your response as search results with titles and brief descriptions, referencing early web, BBS systems, and 1992-era information sources.'
-                        },
-                        {
-                            role: 'user',
-                            content: `Search for information about: ${query}. Provide 3-5 relevant results from 1992 or earlier with titles and brief descriptions.`
-                        }
-                    ],
-                    max_tokens: 500
-                })
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a 1992-era assistant providing search results. Your knowledge cutoff is December 1992. Only provide information, websites, and resources that existed in 1992 or earlier. Format your response as search results with titles and brief descriptions, referencing early web, BBS systems, and 1992-era information sources.'
+                    },
+                    {
+                        role: 'user',
+                        content: `Search for information about: ${query}. Provide 3-5 relevant results from 1992 or earlier with titles and brief descriptions.`
+                    }
+                ],
+                max_tokens: 500
             });
-
-            const data = await response.json();
             loadingMsg.remove();
 
             const aiMsg = document.createElement('div');
@@ -1682,29 +1914,20 @@ IMPORTANT INSTRUCTIONS:
 
     async codeAssistant(query, loadingMsg, chatArea) {
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.openaiApiKey}`
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'You are a 1992-era coding assistant. Provide code examples using programming languages and techniques from 1992 or earlier (C, C++, Pascal, BASIC, Assembly, DOS programming, etc.). Reference 1992-era libraries, APIs, and computing concepts. Format code in code blocks with retro-style comments.'
-                        },
-                        {
-                            role: 'user',
-                            content: query
-                        }
-                    ],
-                    max_tokens: 1000
-                })
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: 'gpt-4',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a 1992-era coding assistant. Provide code examples using programming languages and techniques from 1992 or earlier (C, C++, Pascal, BASIC, Assembly, DOS programming, etc.). Reference 1992-era libraries, APIs, and computing concepts. Format code in code blocks with retro-style comments.'
+                    },
+                    {
+                        role: 'user',
+                        content: query
+                    }
+                ],
+                max_tokens: 1000
             });
-
-            const data = await response.json();
             loadingMsg.remove();
 
             const aiMsg = document.createElement('div');
@@ -1933,6 +2156,203 @@ When users ask what they can do, tell them about these features and how to acces
         return writingKeywords.some(keyword => lowerQuery.includes(keyword));
     }
 
+    getWriteAppContent() {
+        // Get current content from Write app
+        const writeWindow = document.getElementById('write-app');
+        if (writeWindow && writeWindow.style.display !== 'none') {
+            const editor = writeWindow.querySelector('.write-editor');
+            if (editor) {
+                // Get HTML content to preserve formatting
+                const htmlContent = editor.innerHTML || '';
+                // Also get text content for context
+                const textContent = editor.innerText || editor.textContent || '';
+                return {
+                    html: htmlContent.trim(),
+                    text: textContent.trim()
+                };
+            }
+        }
+        return null;
+    }
+
+    isReferencingWrite(query, writeContentData) {
+        // Check if user is asking about/edit/referencing the Write content
+        if (!writeContentData || writeContentData.text.length === 0) return false;
+        
+        const lowerQuery = query.toLowerCase();
+        const referenceKeywords = [
+            'the document', 'the essay', 'the paragraph', 'the letter', 'the text',
+            'what i wrote', 'what you wrote', 'the content', 'in write', 'in the write app',
+            'the write application', 'bold', 'italic', 'underline', 'format', 'edit',
+            'change', 'modify', 'update', 'revise', 'rewrite', 'add to', 'remove from',
+            'delete from', 'improve', 'fix', 'last paragraph', 'first paragraph', 'that paragraph',
+            'this paragraph', 'the last', 'the first', 'make it', 'make the', 'can you',
+            'could you', 'please', 'it', 'that', 'this', 'paragraph', 'sentence', 'word',
+            'title', 'heading', 'line'
+        ];
+        
+        // If Write has content and query contains formatting/editing keywords, it's a reference
+        const hasFormattingKeywords = ['bold', 'italic', 'underline', 'format', 'edit', 'change', 'modify'].some(kw => lowerQuery.includes(kw));
+        const hasReferenceWords = ['the', 'that', 'this', 'it', 'paragraph', 'document', 'essay'].some(kw => lowerQuery.includes(kw));
+        
+        // If it has formatting keywords OR reference words, and Write has content, it's a reference
+        return hasFormattingKeywords || (hasReferenceWords && writeContentData.text.length > 0);
+    }
+
+    async handleWriteDocumentRequest(query, loadingMsg, chatArea, files = [], urls = [], writeContentData) {
+        // Handle requests to work with the Write document
+        try {
+            const model = await this.getModelForAttachments(files, urls);
+            const messages = await this.buildMessagesWithAttachments(query, files, urls);
+            
+            const writeText = writeContentData.text;
+            const writeHtml = writeContentData.html;
+            
+            // Add Write content as context
+            if (messages.length > 0 && messages[0].role === 'system') {
+                messages[0].content += `\n\nIMPORTANT: The user has content in the Write application. Here is the current content:\n\n---Write Application Content (Text)---\n${writeText}\n---End of Write Content---\n\nYou have FULL access to the Write application and can:\n1. Read and reference the content\n2. Edit, modify, or rewrite any part\n3. Apply formatting: bold (<b>text</b>), italic (<i>text</i>), underline (<u>text</u>)\n4. Change alignment, add paragraphs, etc.\n\nCRITICAL FORMATTING INSTRUCTIONS: When the user asks you to modify, format, or edit the document (e.g., "bold the last paragraph", "make it italic", "format the title", "can you bold the last paragraph"), you MUST:\n\n1. Start your response with: "---UPDATED CONTENT---"\n2. Provide the COMPLETE updated document with HTML formatting applied to the requested parts\n3. Use HTML tags: <b>bold</b>, <i>italic</i>, <u>underline</u>, <br> for line breaks\n4. Include ALL the original content, not just the changed part\n5. Apply the requested formatting to the appropriate section (e.g., if they say "bold the last paragraph", make that paragraph bold in the full document)\n6. End with: "---END---"\n7. After the markers, you can add a brief explanation if needed\n\nExample format:\n---UPDATED CONTENT---\n<p>First paragraph here.</p>\n<p>Second paragraph here.</p>\n<p><b>Last paragraph here (now bolded).</b></p>\n---END---\n\nI've bolded the last paragraph as requested.\n\nWhen the user asks about "the document", "the essay", "what I wrote", etc., they are referring to this content. If they ask you to modify it, provide the full updated version with formatting between the markers.`;
+            }
+            
+            // Also add Write content to user message for better context
+            const lastUserMessage = messages[messages.length - 1];
+            if (lastUserMessage && lastUserMessage.role === 'user') {
+                if (typeof lastUserMessage.content === 'string') {
+                    lastUserMessage.content = `[Context: The user has the following content in Write application:\n${writeText}\n]\n\n${lastUserMessage.content}`;
+                } else if (Array.isArray(lastUserMessage.content)) {
+                    const textItem = lastUserMessage.content.find(item => item.type === 'text');
+                    if (textItem) {
+                        textItem.text = `[Context: The user has the following content in Write application:\n${writeText}\n]\n\n${textItem.text}`;
+                    }
+                }
+            }
+            
+            // Use proxy (streaming disabled for Vercel compatibility)
+            loadingMsg.innerHTML = `<div class="message-text"><em>Processing...</em></div>`;
+            
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: model,
+                messages: messages,
+                max_tokens: 2000,
+                stream: false
+            });
+
+            const fullContent = data.choices?.[0]?.message?.content || '';
+
+            loadingMsg.remove();
+
+            // Check if the response contains updated content that should be written to Write app
+            const needsWriteUpdate = this.shouldUpdateWriteDocument(query, fullContent);
+            
+            if (needsWriteUpdate) {
+                // Extract the updated content (might be in the response)
+                let updatedContent = this.extractWriteContent(fullContent, writeContentData.text);
+                
+                if (updatedContent) {
+                    // Write updated content to Write app
+                    await this.writeToWriteApp(updatedContent, query);
+                    
+                    // Show success message
+                    const aiMsg = document.createElement('div');
+                    aiMsg.className = 'ai-message ai-assistant';
+                    aiMsg.innerHTML = `<div class="message-text">${fullContent.replace(/\n/g, '<br>')}<br><br><strong>✓ Updated in Write application</strong></div>`;
+                    chatArea.appendChild(aiMsg);
+                } else {
+                    // Couldn't extract, show response normally
+                    const aiMsg = document.createElement('div');
+                    aiMsg.className = 'ai-message ai-assistant';
+                    aiMsg.innerHTML = `<div class="message-text">${fullContent.replace(/\n/g, '<br>')}</div>`;
+                    chatArea.appendChild(aiMsg);
+                }
+            } else {
+                // Just show the response
+                const aiMsg = document.createElement('div');
+                aiMsg.className = 'ai-message ai-assistant';
+                aiMsg.innerHTML = `<div class="message-text">${fullContent.replace(/\n/g, '<br>')}</div>`;
+                chatArea.appendChild(aiMsg);
+            }
+
+            chatArea.scrollTop = chatArea.scrollHeight;
+        } catch (error) {
+            loadingMsg.remove();
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'ai-message ai-assistant';
+            aiMsg.innerHTML = `<div class="message-text"><strong>Error:</strong> ${error.message}</div>`;
+            chatArea.appendChild(aiMsg);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+    }
+
+    shouldUpdateWriteDocument(query, response) {
+        // Determine if the response should update the Write document
+        const lowerQuery = query.toLowerCase();
+        const lowerResponse = response.toLowerCase();
+        
+        const updateKeywords = [
+            'bold', 'italic', 'underline', 'format', 'edit', 'change', 'modify',
+            'update', 'revise', 'rewrite', 'add', 'remove', 'delete', 'improve',
+            'fix', 'make it', 'make the', 'apply', 'set'
+        ];
+        
+        // Check if user asked to modify AND response contains formatted content or HTML
+        const askedToModify = updateKeywords.some(keyword => lowerQuery.includes(keyword));
+        const hasFormattedContent = response.includes('<b>') || response.includes('<i>') || 
+                                   response.includes('<u>') || response.includes('**') ||
+                                   response.includes('*') || response.length > 100;
+        
+        return askedToModify && hasFormattedContent;
+    }
+
+    extractWriteContent(response, originalContent) {
+        // Try to extract the updated content from the response
+        
+        // First, look for content between markers (---UPDATED CONTENT---)
+        const markerMatch = response.match(/---UPDATED CONTENT---\s*([\s\S]*?)---END---/i);
+        if (markerMatch && markerMatch[1]) {
+            return markerMatch[1].trim();
+        }
+        
+        // Look for content between any --- markers
+        const docMarkers = response.match(/---[\s\S]*?---/);
+        if (docMarkers && docMarkers[0].length > 50) {
+            let content = docMarkers[0].replace(/---/g, '').trim();
+            if (content.length > originalContent.length * 0.5) {
+                return content;
+            }
+        }
+        
+        // If response contains HTML tags and is substantial, extract HTML content
+        if (response.includes('<b>') || response.includes('<i>') || response.includes('<u>')) {
+            // Find the HTML content section
+            const htmlSection = response.match(/(<[^>]+>[\s\S]*<\/[^>]+>)/);
+            if (htmlSection && htmlSection[1].length > originalContent.length * 0.5) {
+                return htmlSection[1];
+            }
+            
+            // If entire response is mostly HTML formatted content
+            if (response.match(/<[^>]+>/g) && response.match(/<[^>]+>/g).length > 2) {
+                // Clean up conversational prefixes but keep HTML
+                let cleaned = response.replace(/^[^<]*/, ''); // Remove text before first HTML tag
+                if (cleaned.length > originalContent.length * 0.5) {
+                    return cleaned.trim();
+                }
+            }
+        }
+        
+        // If response is mostly the updated content (longer than 80% of original), use it
+        if (response.length > originalContent.length * 0.8) {
+            // Clean up conversational prefixes
+            let cleaned = response.replace(/^[^<\n]*:\s*/i, ''); // Remove "Here's the updated:" etc
+            cleaned = cleaned.replace(/^[^<\n]*\n\n/, ''); // Remove intro text
+            // Remove trailing conversational text
+            cleaned = cleaned.replace(/\n\n[^<]*$/i, ''); // Remove trailing text after content
+            if (cleaned.length > originalContent.length * 0.5) {
+                return cleaned.trim();
+            }
+        }
+        
+        return null;
+    }
+
     positionWindowsForWrite() {
         const screenContent = document.querySelector('.screen-content');
         const statusBar = document.querySelector('.desktop-status-bar');
@@ -1987,20 +2407,11 @@ When users ask what they can do, tell them about these features and how to acces
                 messages[0].content += '\n\nIMPORTANT: When the user asks you to write something (essay, document, paragraph, letter, etc.), provide ONLY the written content itself. Do NOT include any questions, explanations, introductions, or conversational text. Just provide the actual written content that should go in the document.';
             }
             
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.openaiApiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: messages,
-                    max_tokens: 2000
-                })
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: model,
+                messages: messages,
+                max_tokens: 2000
             });
-
-            const data = await response.json();
             
             if (data.choices && data.choices[0]) {
                 let content = data.choices[0].message.content;
@@ -2035,17 +2446,135 @@ When users ask what they can do, tell them about these features and how to acces
         }
     }
 
+    async askQuestionsOnly(query, loadingMsg, chatArea, files = [], urls = []) {
+        // Intelligently determine if questions are needed or if we can proceed
+        try {
+            const model = await this.getModelForAttachments(files, urls);
+            const messages = await this.buildMessagesWithAttachments(query, files, urls);
+            
+            // Let the AI intelligently decide - ask questions only if truly needed for clarification
+            if (messages.length > 0 && messages[0].role === 'system') {
+                messages[0].content += '\n\nThe user wants you to write something. Be intelligent:\n\n- If the request is clear enough to write something reasonable, respond with: "I have enough information to proceed."\n- Only ask 2-3 clarifying questions if the request is genuinely vague or ambiguous and you need clarification to write something meaningful.\n- Trust your ability to interpret and be creative - you can make reasonable assumptions.\n- If you\'re unsure but can still write something reasonable, proceed rather than asking.\n\nRespond with "I have enough information to proceed." if you can write, or ask questions ONLY if you truly need clarification.';
+            }
+            
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: model,
+                messages: messages,
+                max_tokens: 500
+            });
+            loadingMsg.remove();
+
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'ai-message ai-assistant';
+            
+            if (data.error) {
+                aiMsg.innerHTML = `<div class="message-text"><strong>Error:</strong> ${data.error.message}</div>`;
+            } else if (data.choices && data.choices[0]) {
+                const content = data.choices[0].message.content;
+                aiMsg.innerHTML = `<div class="message-text">${content.replace(/\n/g, '<br>')}</div>`;
+            } else {
+                aiMsg.innerHTML = `<div class="message-text"><strong>Error:</strong> No response</div>`;
+            }
+
+            chatArea.appendChild(aiMsg);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        } catch (error) {
+            loadingMsg.remove();
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'ai-message ai-assistant';
+            aiMsg.innerHTML = `<div class="message-text"><strong>Error:</strong> ${error.message}</div>`;
+            chatArea.appendChild(aiMsg);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+    }
+
+    async checkIfEnoughInfo(originalQuery, userAnswer, files = [], urls = []) {
+        // Intelligently check if we have enough information to write - no hardcoded rules
+        try {
+            const model = await this.getModelForAttachments(files, urls);
+            const messages = await this.buildMessagesWithAttachments(
+                `${originalQuery}\n\nUser's answer: ${userAnswer}`,
+                files,
+                urls
+            );
+            
+            // Let AI understand context and intent naturally - be decisive
+            if (messages.length > 0 && messages[0].role === 'system') {
+                messages[0].content += '\n\nBased on the original request and the user\'s answer, determine if you have enough information to write. Be decisive:\n\n- Default to YES - if you have reasonable information or creative freedom, you have enough.\n- Only say NO if you ABSOLUTELY cannot write something reasonable.\n- Trust your ability to be creative and make reasonable assumptions.\n- Consider user intent - they want you to write, so proceed when possible.\n\nRespond with ONLY "YES" if you can write (which should be most cases), or "NO" only if you truly cannot proceed.';
+            }
+            
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: model,
+                messages: messages,
+                max_tokens: 150
+            });
+            
+            if (data.choices && data.choices[0]) {
+                const content = data.choices[0].message.content.trim().toUpperCase();
+                // Check if response indicates we have enough info
+                return content.startsWith('YES') || content.includes('ENOUGH') || content.includes('PROCEED') || content.includes('SUFFICIENT');
+            }
+            // Default to proceeding if unsure - trust the AI's judgment
+            return true;
+        } catch (error) {
+            console.error('Error checking if enough info:', error);
+            // If check fails, proceed - better to write than to get stuck
+            return true;
+        }
+    }
+    
+    async checkInitialRequestNeedsQuestions(query, files = [], urls = []) {
+        // Intelligently determine if the initial request needs questions - no hardcoded rules
+        try {
+            const model = await this.getModelForAttachments(files, urls);
+            const messages = await this.buildMessagesWithAttachments(query, files, urls);
+            
+            // Let AI understand user intent - ask questions only if clarification is truly needed
+            if (messages.length > 0 && messages[0].role === 'system') {
+                messages[0].content += '\n\nThe user wants you to write something. Evaluate intelligently:\n\n- If the request is clear enough or you can interpret it reasonably, respond with: "I have enough information to proceed."\n- Only ask for clarification if the request is genuinely vague or ambiguous and you need specific details to write meaningfully.\n- Trust your ability to interpret and create - you can make reasonable assumptions.\n- If you can write something reasonable even with some ambiguity, proceed.\n\nRespond with "I have enough information to proceed." if you can write, or ask questions ONLY if you truly need clarification to write something meaningful.';
+            }
+            
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: model,
+                messages: messages,
+                max_tokens: 250
+            });
+            
+            if (data.choices && data.choices[0]) {
+                const content = data.choices[0].message.content.trim().toUpperCase();
+                // Check if response indicates we have enough info (no questions needed)
+                const hasEnough = content.includes('ENOUGH INFORMATION') || content.includes('PROCEED') || content.includes('SUFFICIENT');
+                return !hasEnough; // Return true if we NEED questions, false if we can proceed
+            }
+            // Default to asking questions if unsure - better to clarify than assume
+            return true;
+        } catch (error) {
+            console.error('Error checking initial request:', error);
+            // If check fails, ask questions to be safe
+            return true;
+        }
+    }
+
     async writeToWriteApp(content, userQuery) {
         // Wait for Write window to be ready, then populate it
         setTimeout(() => {
             const writeWindow = document.getElementById('write-app');
             if (writeWindow) {
+                // Make sure Write window is open
+                writeWindow.style.display = 'flex';
+                this.positionWindowsForWrite();
+                
                 const editor = writeWindow.querySelector('.write-editor');
                 if (editor) {
-                    // Clear existing content
-                    editor.innerHTML = '';
-                    // Add new content (preserving line breaks)
-                    const formattedContent = content.replace(/\n/g, '<br>');
+                    // Check if content already has HTML formatting
+                    let formattedContent = content;
+                    
+                    // If content doesn't have HTML tags, convert line breaks
+                    if (!content.includes('<') || !content.match(/<[^>]+>/)) {
+                        formattedContent = content.replace(/\n/g, '<br>');
+                    }
+                    
+                    // Clear existing content and add new content
                     editor.innerHTML = formattedContent;
                     editor.focus();
                     // Move cursor to end
@@ -2066,20 +2595,11 @@ When users ask what they can do, tell them about these features and how to acces
             const model = await this.getModelForAttachments(files, urls);
             const messages = await this.buildMessagesWithAttachments(query, files, urls);
             
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.openaiApiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: messages,
-                    max_tokens: 1000
-                })
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: model,
+                messages: messages,
+                max_tokens: 1000
             });
-
-            const data = await response.json();
             loadingMsg.remove();
 
             let content = null;
@@ -2282,21 +2802,15 @@ When users ask what they can do, tell them about these features and how to acces
 
     async analyzeImageWithVision(imageUrl, userRequest) {
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.openaiApiKey}`
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4o',
-                    messages: [
-                        {
-                            role: 'user',
-                            content: [
-                                {
-                                    type: 'text',
-                                    text: `You are analyzing a reference image that will be used to generate a new image. The user's request is: "${userRequest}"
+            const data = await this.callOpenAI('/v1/chat/completions', {
+                model: 'gpt-4o',
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'text',
+                                text: `You are analyzing a reference image that will be used to generate a new image. The user's request is: "${userRequest}"
 
 Provide an EXTREMELY detailed and structured analysis of this reference image. Include:
 
@@ -2317,10 +2831,8 @@ Be extremely specific and detailed. The goal is to recreate this image accuratel
                         }
                     ],
                     max_tokens: 800
-                })
-            });
+                });
 
-            const data = await response.json();
             if (data.choices && data.choices[0]) {
                 return data.choices[0].message.content;
             }

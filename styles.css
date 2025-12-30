@@ -77,14 +77,31 @@ body {
 
 .sticky-note-wrapper {
     position: absolute;
-    left: 520px;
-    bottom: -28px;
+    left: 656px;
+    bottom: 30px;
     width: 320px;
     height: 320px;
     z-index: 50;
-    pointer-events: auto;
+    pointer-events: none; /* Disable pointer events on wrapper itself */
     transform: scaleX(-1);
     transform-origin: center;
+}
+
+/* Smaller clickable area inside the wrapper */
+.sticky-note-clickable-area {
+    position: absolute;
+    /* Center the clickable area - adjust these values to make it smaller */
+    left: 50%;
+    top: 55%; /* Moved down from 50% to lower the top edge */
+    transform: translate(-50%, -50%) scaleX(-1); /* Match wrapper's scaleX transform */
+    width: 220px; /* Clickable width - adjust as needed */
+    height: 220px; /* Clickable height - adjust as needed */
+    pointer-events: auto; /* Only this area is clickable */
+    z-index: 100;
+    cursor: pointer;
+    /* Uncomment to see the clickable area for debugging */
+    /* background: rgba(255, 0, 0, 0.3); */
+    /* border: 2px solid red; */
 }
 
 .sticky-note {
@@ -108,11 +125,12 @@ body {
     z-index: 2;
 }
 
-.sticky-note-wrapper:hover .sticky-note-flat {
+/* Hover effect only triggers when hovering over the clickable area */
+.sticky-note-clickable-area:hover ~ .sticky-note-flat {
     opacity: 0;
 }
 
-.sticky-note-wrapper:hover .sticky-note-bent {
+.sticky-note-clickable-area:hover ~ .sticky-note-bent {
     opacity: 1;
 }
 
