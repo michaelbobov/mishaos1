@@ -596,6 +596,8 @@ class ProgramManager {
         // Load startup programs after a short delay
         setTimeout(() => {
             this.loadStartupPrograms();
+            // Always open Read Me on startup
+            this.openReadme();
         }, 500);
     }
 
@@ -699,6 +701,11 @@ class ProgramManager {
             }).catch(() => {
                 isPlaying = false;
             });
+        });
+
+        // Click on sticky note opens portfolio
+        targetElement.addEventListener('click', () => {
+            window.open('https://www.michaelbobov.com/', '_blank');
         });
     }
 

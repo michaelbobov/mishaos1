@@ -115,6 +115,29 @@ body {
     transition: none;
 }
 
+/* Handwritten text on sticky note */
+.sticky-note-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scaleX(-1) rotate(-2deg);
+    font-family: 'Comic Sans MS', 'Marker Felt', 'Brush Script MT', cursive, sans-serif;
+    font-size: 18px;
+    color: #333;
+    z-index: 200; /* Higher than clickable area (100) to be on top */
+    pointer-events: auto; /* Enable clicking */
+    font-style: italic;
+    letter-spacing: 1px;
+    opacity: 0.85;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+    cursor: pointer;
+    display: block;
+    padding: 10px; /* Add padding to make clickable area larger */
+    margin: -10px; /* Offset padding to keep visual position */
+}
+
+
 .sticky-note-flat {
     opacity: 1;
     z-index: 1;
@@ -906,6 +929,90 @@ body {
     position: relative;
     z-index: 1;
     min-height: 0;
+}
+
+/* ===== Retro Windows 95/98 Style Scrollbars ===== */
+
+/* Webkit browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+    width: 17px !important;
+    height: 17px !important;
+    background-color: #c0c0c0 !important;
+}
+
+::-webkit-scrollbar-track {
+    background-color: #c0c0c0 !important;
+    border-left: 1px solid #808080 !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #c0c0c0 !important;
+    border: 1px solid !important;
+    border-color: #ffffff #404040 #404040 #ffffff !important;
+    box-shadow: inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 #808080 !important;
+}
+
+::-webkit-scrollbar-thumb:active {
+    background-color: #c0c0c0 !important;
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: inset -1px -1px 0 #dfdfdf, inset 1px 1px 0 #808080 !important;
+}
+
+::-webkit-scrollbar-button {
+    background-color: #c0c0c0 !important;
+    border: 1px solid !important;
+    border-color: #ffffff #404040 #404040 #ffffff !important;
+    box-shadow: inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 #808080 !important;
+    display: block !important;
+    width: 17px !important;
+    height: 17px !important;
+}
+
+::-webkit-scrollbar-button:active {
+    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    box-shadow: inset -1px -1px 0 #dfdfdf, inset 1px 1px 0 #808080 !important;
+}
+
+/* Up arrow */
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpolygon points='3.5,0 7,4 0,4' fill='%23000'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 7px 4px !important;
+}
+
+/* Down arrow */
+::-webkit-scrollbar-button:single-button:vertical:increment {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4'%3E%3Cpolygon points='0,0 7,0 3.5,4' fill='%23000'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 7px 4px !important;
+}
+
+/* Left arrow */
+::-webkit-scrollbar-button:single-button:horizontal:decrement {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='7'%3E%3Cpolygon points='4,0 4,7 0,3.5' fill='%23000'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 4px 7px !important;
+}
+
+/* Right arrow */
+::-webkit-scrollbar-button:single-button:horizontal:increment {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='7'%3E%3Cpolygon points='0,0 4,3.5 0,7' fill='%23000'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 4px 7px !important;
+}
+
+::-webkit-scrollbar-corner {
+    background-color: #c0c0c0 !important;
+}
+
+/* Firefox scrollbar styling */
+* {
+    scrollbar-width: auto;
+    scrollbar-color: #c0c0c0 #c0c0c0;
 }
 
 /* Minesweeper window - no scrolling */
