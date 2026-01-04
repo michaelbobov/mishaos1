@@ -1,5 +1,50 @@
 // Retro Program Manager
 
+// Responsive scaling - scales the entire interface proportionally to fit any viewport
+(function initResponsiveScaling() {
+    const DESIGN_WIDTH = 1920;
+    const DESIGN_HEIGHT = 1080;
+    
+    function scaleToFit() {
+        const container = document.querySelector('.room-background');
+        if (!container) return;
+        
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Calculate scale to fit viewport while maintaining aspect ratio
+        const scaleX = viewportWidth / DESIGN_WIDTH;
+        const scaleY = viewportHeight / DESIGN_HEIGHT;
+        const scale = Math.min(scaleX, scaleY);
+        
+        // Apply the scale transform with GPU acceleration for crisp text
+        container.style.transform = `scale3d(${scale}, ${scale}, 1) translateZ(0)`;
+        
+        // Center the scaled content
+        // Since transform doesn't affect layout, we need to position manually
+        const scaledWidth = DESIGN_WIDTH * scale;
+        const scaledHeight = DESIGN_HEIGHT * scale;
+        const offsetX = (viewportWidth - scaledWidth) / 2;
+        const offsetY = (viewportHeight - scaledHeight) / 2;
+        
+        container.style.position = 'absolute';
+        container.style.left = `${offsetX}px`;
+        container.style.top = `${offsetY}px`;
+    }
+    
+    // Run on load and resize
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scaleToFit);
+    } else {
+        scaleToFit();
+    }
+    window.addEventListener('resize', scaleToFit);
+    window.addEventListener('orientationchange', scaleToFit);
+    
+    // Also run after a short delay to catch any layout shifts
+    setTimeout(scaleToFit, 100);
+})();
+
 class ProgramManager {
     constructor() {
         this.zIndex = 100;
@@ -705,7 +750,7 @@ class ProgramManager {
 
         // Click on sticky note opens portfolio
         targetElement.addEventListener('click', () => {
-            window.open('https://www.michaelbobov.com/', '_blank');
+            window.location.href = 'https://www.michaelbobov.com/';
         });
     }
 
@@ -1290,10 +1335,11 @@ class ProgramManager {
             aiApp.style.top = `${top}px`;
             aiApp.style.width = `${windowWidth}px`;
             aiApp.style.height = `${windowHeight}px`;
-            
+
             this.setupWindowDrag(aiApp);
             this.setupSingleWindowControls(aiApp);
-            
+            this.enableWindowResize(aiApp);
+
             // Remove from taskbar if it was there
             this.removeFromTaskbar('ai-assistant-app');
             
@@ -1823,12 +1869,12 @@ IMPORTANT INSTRUCTIONS:
             }
             
             const data = await this.callOpenAI('/v1/images/generations', {
-                model: 'dall-e-3',
-                prompt: enhancedPrompt,
-                n: 1,
-                size: '1024x1024',
-                quality: 'standard',
-                style: 'vivid'
+                    model: 'dall-e-3',
+                    prompt: enhancedPrompt,
+                    n: 1,
+                    size: '1024x1024',
+                    quality: 'standard',
+                    style: 'vivid'
             });
             loadingMsg.remove();
 
@@ -1875,18 +1921,18 @@ IMPORTANT INSTRUCTIONS:
     async webSearch(query, loadingMsg, chatArea) {
         try {
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: 'gpt-4',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are a 1992-era assistant providing search results. Your knowledge cutoff is December 1992. Only provide information, websites, and resources that existed in 1992 or earlier. Format your response as search results with titles and brief descriptions, referencing early web, BBS systems, and 1992-era information sources.'
-                    },
-                    {
-                        role: 'user',
-                        content: `Search for information about: ${query}. Provide 3-5 relevant results from 1992 or earlier with titles and brief descriptions.`
-                    }
-                ],
-                max_tokens: 500
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a 1992-era assistant providing search results. Your knowledge cutoff is December 1992. Only provide information, websites, and resources that existed in 1992 or earlier. Format your response as search results with titles and brief descriptions, referencing early web, BBS systems, and 1992-era information sources.'
+                        },
+                        {
+                            role: 'user',
+                            content: `Search for information about: ${query}. Provide 3-5 relevant results from 1992 or earlier with titles and brief descriptions.`
+                        }
+                    ],
+                    max_tokens: 500
             });
             loadingMsg.remove();
 
@@ -1922,18 +1968,18 @@ IMPORTANT INSTRUCTIONS:
     async codeAssistant(query, loadingMsg, chatArea) {
         try {
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: 'gpt-4',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are a 1992-era coding assistant. Provide code examples using programming languages and techniques from 1992 or earlier (C, C++, Pascal, BASIC, Assembly, DOS programming, etc.). Reference 1992-era libraries, APIs, and computing concepts. Format code in code blocks with retro-style comments.'
-                    },
-                    {
-                        role: 'user',
-                        content: query
-                    }
-                ],
-                max_tokens: 1000
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a 1992-era coding assistant. Provide code examples using programming languages and techniques from 1992 or earlier (C, C++, Pascal, BASIC, Assembly, DOS programming, etc.). Reference 1992-era libraries, APIs, and computing concepts. Format code in code blocks with retro-style comments.'
+                        },
+                        {
+                            role: 'user',
+                            content: query
+                        }
+                    ],
+                    max_tokens: 1000
             });
             loadingMsg.remove();
 
@@ -2237,9 +2283,9 @@ When users ask what they can do, tell them about these features and how to acces
             loadingMsg.innerHTML = `<div class="message-text"><em>Processing...</em></div>`;
             
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: model,
-                messages: messages,
-                max_tokens: 2000,
+                    model: model,
+                    messages: messages,
+                    max_tokens: 2000,
                 stream: false
             });
 
@@ -2382,6 +2428,7 @@ When users ask what they can do, tell them about these features and how to acces
             aiApp.style.position = 'absolute';
             this.setupWindowDrag(aiApp);
             this.setupSingleWindowControls(aiApp);
+            this.enableWindowResize(aiApp);
             this.focusWindow(aiApp);
         }
         
@@ -2415,9 +2462,9 @@ When users ask what they can do, tell them about these features and how to acces
             }
             
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: model,
-                messages: messages,
-                max_tokens: 2000
+                    model: model,
+                    messages: messages,
+                    max_tokens: 2000
             });
             
             if (data.choices && data.choices[0]) {
@@ -2465,9 +2512,9 @@ When users ask what they can do, tell them about these features and how to acces
             }
             
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: model,
-                messages: messages,
-                max_tokens: 500
+                    model: model,
+                    messages: messages,
+                    max_tokens: 500
             });
             loadingMsg.remove();
 
@@ -2511,9 +2558,9 @@ When users ask what they can do, tell them about these features and how to acces
             }
             
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: model,
-                messages: messages,
-                max_tokens: 150
+                    model: model,
+                    messages: messages,
+                    max_tokens: 150
             });
             
             if (data.choices && data.choices[0]) {
@@ -2542,9 +2589,9 @@ When users ask what they can do, tell them about these features and how to acces
             }
             
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: model,
-                messages: messages,
-                max_tokens: 250
+                    model: model,
+                    messages: messages,
+                    max_tokens: 250
             });
             
             if (data.choices && data.choices[0]) {
@@ -2603,9 +2650,9 @@ When users ask what they can do, tell them about these features and how to acces
             const messages = await this.buildMessagesWithAttachments(query, files, urls);
             
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: model,
-                messages: messages,
-                max_tokens: 1000
+                    model: model,
+                    messages: messages,
+                    max_tokens: 1000
             });
             loadingMsg.remove();
 
@@ -2810,14 +2857,14 @@ When users ask what they can do, tell them about these features and how to acces
     async analyzeImageWithVision(imageUrl, userRequest) {
         try {
             const data = await this.callOpenAI('/v1/chat/completions', {
-                model: 'gpt-4o',
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'text',
-                                text: `You are analyzing a reference image that will be used to generate a new image. The user's request is: "${userRequest}"
+                    model: 'gpt-4o',
+                    messages: [
+                        {
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'text',
+                                    text: `You are analyzing a reference image that will be used to generate a new image. The user's request is: "${userRequest}"
 
 Provide an EXTREMELY detailed and structured analysis of this reference image. Include:
 
@@ -2838,7 +2885,7 @@ Be extremely specific and detailed. The goal is to recreate this image accuratel
                         }
                     ],
                     max_tokens: 800
-                });
+            });
 
             if (data.choices && data.choices[0]) {
                 return data.choices[0].message.content;
@@ -3103,7 +3150,8 @@ Be extremely specific and detailed. The goal is to recreate this image accuratel
             'media-player-app': 'mediaplayer-icon',
             'sound-recorder-app': 'soundrec-icon',
             'cardfile-app': 'cardfile-icon',
-            'ai-assistant-app': 'quill-icon-image'
+            'ai-assistant-app': 'quill-icon-image',
+            'photo-gallery-app': 'gallery-icon'
         };
         
         return iconMap[windowId] || null;
@@ -3245,7 +3293,7 @@ Be extremely specific and detailed. The goal is to recreate this image accuratel
                            app === 'notepad' || app === 'recorder' || app === 'calendar' ||
                            app === 'calculator' || app === 'clock' || app === 'object-packager' ||
                            app === 'character-map' || app === 'media-player' || 
-                           app === 'sound-recorder' || app === 'cardfile') {
+                           app === 'sound-recorder' || app === 'cardfile' || app === 'photo-gallery') {
                     this.openAccessory(app);
                 }
             });
@@ -3262,7 +3310,7 @@ Be extremely specific and detailed. The goal is to recreate this image accuratel
                     app === 'notepad' || app === 'recorder' || app === 'calendar' ||
                     app === 'calculator' || app === 'clock' || app === 'object-packager' ||
                     app === 'character-map' || app === 'media-player' || 
-                    app === 'sound-recorder' || app === 'cardfile') {
+                    app === 'sound-recorder' || app === 'cardfile' || app === 'photo-gallery') {
                     appId = `accessory-${app}`;
                 }
                 
@@ -3319,7 +3367,8 @@ Be extremely specific and detailed. The goal is to recreate this image accuratel
             minesweeperApp.style.bottom = 'auto';
             this.setupWindowDrag(minesweeperApp);
             this.setupSingleWindowControls(minesweeperApp);
-            
+            this.enableWindowResize(minesweeperApp);
+
             // Remove from taskbar if it was there
             this.removeFromTaskbar('minesweeper-app');
             
@@ -3355,7 +3404,8 @@ Be extremely specific and detailed. The goal is to recreate this image accuratel
             readmeApp.style.bottom = 'auto';
             this.setupWindowDrag(readmeApp);
             this.setupSingleWindowControls(readmeApp);
-            
+            this.enableWindowResize(readmeApp);
+
             // Remove from taskbar if it was there
             this.removeFromTaskbar('readme-app');
         } else {
@@ -3601,7 +3651,8 @@ Address: 123 Main St</textarea>
             'sound-recorder': { width: 350, height: 180 },
             'cardfile': { width: 350, height: 280 },
             'recorder': { width: 300, height: 250 },
-            'object-packager': { width: 300, height: 250 }
+            'object-packager': { width: 300, height: 250 },
+            'photo-gallery': { width: 480, height: 400 }
         };
         return sizes[appName] || { width: 400, height: 300 };
     }
@@ -3768,7 +3819,48 @@ Address: 123 Main St</textarea>
             this.initRecorder(appWindow);
         } else if (appName === 'object-packager') {
             this.initObjectPackager(appWindow);
+        } else if (appName === 'photo-gallery') {
+            this.initPhotoGallery(appWindow);
         }
+    }
+
+    initPhotoGallery(appWindow) {
+        const photos = [
+            { src: 'assets/canada1.jpg', name: 'canada1.jpg' }
+        ];
+        
+        let currentIndex = 0;
+        const viewer = appWindow.querySelector('.gallery-photo');
+        const thumbnails = appWindow.querySelector('.gallery-thumbnails');
+        const photoName = appWindow.querySelector('#gallery-photo-name');
+        const photoCount = appWindow.querySelector('#gallery-photo-count');
+        
+        function updatePhoto(index) {
+            currentIndex = index;
+            const photo = photos[index];
+            viewer.src = photo.src;
+            photoName.textContent = photo.name;
+            photoCount.textContent = `${index + 1} of ${photos.length}`;
+            
+            // Update thumbnail selection
+            thumbnails.querySelectorAll('.gallery-thumb').forEach((thumb, i) => {
+                thumb.classList.toggle('selected', i === index);
+            });
+        }
+        
+        // Setup thumbnail clicks
+        thumbnails.querySelectorAll('.gallery-thumb').forEach((thumb, index) => {
+            thumb.addEventListener('click', () => updatePhoto(index));
+        });
+        
+        // Keyboard navigation
+        appWindow.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                updatePhoto(currentIndex - 1);
+            } else if (e.key === 'ArrowRight' && currentIndex < photos.length - 1) {
+                updatePhoto(currentIndex + 1);
+            }
+        });
     }
 
     initCalculator(appWindow) {
@@ -4245,7 +4337,8 @@ Address: 123 Main St</textarea>
             'character-map': 'Character Map',
             'media-player': 'Media Player',
             'sound-recorder': 'Sound Recorder',
-            'cardfile': 'Cardfile'
+            'cardfile': 'Cardfile',
+            'photo-gallery': 'Photo Gallery'
         };
 
         const title = appTitles[appName] || appName;
@@ -4290,8 +4383,9 @@ Address: 123 Main St</textarea>
             appWindow.style.bottom = 'auto';
             this.setupWindowDrag(appWindow);
             this.setupSingleWindowControls(appWindow);
+            this.enableWindowResize(appWindow);
         }
-        
+
         this.focusWindow(appWindow);
     }
 
@@ -4538,7 +4632,8 @@ Address: 123 Main St</textarea>
             solitaireApp.style.bottom = 'auto';
             this.setupWindowDrag(solitaireApp);
             this.setupSingleWindowControls(solitaireApp);
-            
+            this.enableWindowResize(solitaireApp);
+
             // Remove from taskbar if it was there
             this.removeFromTaskbar('solitaire-app');
             
@@ -5070,7 +5165,8 @@ Address: 123 Main St</textarea>
             skifreeApp.style.bottom = 'auto';
             this.setupWindowDrag(skifreeApp);
             this.setupSingleWindowControls(skifreeApp);
-            
+            this.enableWindowResize(skifreeApp);
+
             // Remove from taskbar if it was there
             this.removeFromTaskbar('skifree-app');
             
@@ -5106,7 +5202,8 @@ Address: 123 Main St</textarea>
             doomApp.style.bottom = 'auto';
             this.setupWindowDrag(doomApp);
             this.setupSingleWindowControls(doomApp);
-            
+            this.enableWindowResize(doomApp);
+
             // Remove from taskbar if it was there
             this.removeFromTaskbar('doom-app');
             
@@ -5829,6 +5926,11 @@ Address: 123 Main St</textarea>
                                 this.toggleMaximize(this.currentWindow);
                             }
                             break;
+                        case 'size':
+                            if (!isProgramManager) {
+                                this.enableWindowResize(this.currentWindow, true);
+                            }
+                            break;
                         case 'close':
                             if (isProgramManager) {
                                 this.minimizeProgramManager();
@@ -6185,6 +6287,225 @@ Address: 123 Main St</textarea>
         }
     }
 
+    enableWindowResize(win, fromMenu = false) {
+        if (!win) return;
+        
+        // Add resize handles if not already present
+        if (!win.querySelector('.resize-handle')) {
+            const handles = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+            handles.forEach(dir => {
+                const handle = document.createElement('div');
+                handle.className = `resize-handle resize-${dir}`;
+                handle.dataset.direction = dir;
+                win.appendChild(handle);
+            });
+        }
+        
+        win.classList.add('resizable');
+        
+        // If called from Size menu, enter resize mode
+        if (fromMenu) {
+            this.enterResizeMode(win);
+            return;
+        }
+        
+        // Setup resize handlers for edge/corner dragging
+        win.querySelectorAll('.resize-handle').forEach(handle => {
+            if (handle.dataset.resizeSetup) return;
+            handle.dataset.resizeSetup = 'true';
+            
+            handle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const direction = handle.dataset.direction;
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startWidth = win.offsetWidth;
+                const startHeight = win.offsetHeight;
+                const startLeft = win.offsetLeft;
+                const startTop = win.offsetTop;
+                
+                const minWidth = 150;
+                const minHeight = 100;
+                
+                const mousemove = (e) => {
+                    let newWidth = startWidth;
+                    let newHeight = startHeight;
+                    let newLeft = startLeft;
+                    let newTop = startTop;
+                    
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    
+                    if (direction.includes('e')) {
+                        newWidth = Math.max(minWidth, startWidth + dx);
+                    }
+                    if (direction.includes('w')) {
+                        newWidth = Math.max(minWidth, startWidth - dx);
+                        if (newWidth > minWidth) {
+                            newLeft = startLeft + dx;
+                        }
+                    }
+                    if (direction.includes('s')) {
+                        newHeight = Math.max(minHeight, startHeight + dy);
+                    }
+                    if (direction.includes('n')) {
+                        newHeight = Math.max(minHeight, startHeight - dy);
+                        if (newHeight > minHeight) {
+                            newTop = startTop + dy;
+                        }
+                    }
+                    
+                    win.style.width = `${newWidth}px`;
+                    win.style.height = `${newHeight}px`;
+                    win.style.left = `${newLeft}px`;
+                    win.style.top = `${newTop}px`;
+                };
+                
+                const mouseup = () => {
+                    document.removeEventListener('mousemove', mousemove);
+                    document.removeEventListener('mouseup', mouseup);
+                };
+                
+                document.addEventListener('mousemove', mousemove);
+                document.addEventListener('mouseup', mouseup);
+            });
+        });
+    }
+
+    enterResizeMode(win) {
+        // Classic Windows resize mode - cursor changes, move mouse to resize, click to confirm
+        const screenContent = document.querySelector('.screen-content');
+        const startWidth = win.offsetWidth;
+        const startHeight = win.offsetHeight;
+        const startLeft = win.offsetLeft;
+        const startTop = win.offsetTop;
+        const minWidth = 150;
+        const minHeight = 100;
+        
+        let direction = null;
+        let resizing = false;
+        let startX, startY;
+        
+        // Add resize mode class for cursor
+        document.body.classList.add('resize-mode-active');
+        win.classList.add('resize-mode');
+        
+        // Change cursor to indicate resize mode
+        screenContent.style.cursor = 'move';
+        
+        const determineDirection = (e) => {
+            const rect = win.getBoundingClientRect();
+            const x = e.clientX;
+            const y = e.clientY;
+            const edge = 20; // Edge detection zone
+            
+            let dir = '';
+            if (y < rect.top + edge) dir += 'n';
+            if (y > rect.bottom - edge) dir += 's';
+            if (x < rect.left + edge) dir += 'w';
+            if (x > rect.right - edge) dir += 'e';
+            
+            return dir || 'se'; // Default to bottom-right
+        };
+        
+        const updateCursor = (dir) => {
+            const cursors = {
+                'n': 'n-resize', 's': 's-resize', 'e': 'e-resize', 'w': 'w-resize',
+                'ne': 'ne-resize', 'nw': 'nw-resize', 'se': 'se-resize', 'sw': 'sw-resize'
+            };
+            screenContent.style.cursor = cursors[dir] || 'se-resize';
+        };
+        
+        const mousemove = (e) => {
+            if (!resizing) {
+                // Phase 1: Determine direction based on mouse position
+                direction = determineDirection(e);
+                updateCursor(direction);
+            } else {
+                // Phase 2: Actually resize
+                let newWidth = startWidth;
+                let newHeight = startHeight;
+                let newLeft = startLeft;
+                let newTop = startTop;
+                
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                
+                if (direction.includes('e')) {
+                    newWidth = Math.max(minWidth, startWidth + dx);
+                }
+                if (direction.includes('w')) {
+                    newWidth = Math.max(minWidth, startWidth - dx);
+                    if (newWidth > minWidth) {
+                        newLeft = startLeft + dx;
+                    }
+                }
+                if (direction.includes('s')) {
+                    newHeight = Math.max(minHeight, startHeight + dy);
+                }
+                if (direction.includes('n')) {
+                    newHeight = Math.max(minHeight, startHeight - dy);
+                    if (newHeight > minHeight) {
+                        newTop = startTop + dy;
+                    }
+                }
+                
+                win.style.width = `${newWidth}px`;
+                win.style.height = `${newHeight}px`;
+                win.style.left = `${newLeft}px`;
+                win.style.top = `${newTop}px`;
+            }
+        };
+        
+        const mousedown = (e) => {
+            if (!resizing) {
+                // First click: start resizing
+                e.preventDefault();
+                resizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+            }
+        };
+        
+        const mouseup = (e) => {
+            if (resizing) {
+                // Second click or mouse up: confirm resize and exit mode
+                cleanup();
+            }
+        };
+        
+        const keydown = (e) => {
+            if (e.key === 'Escape') {
+                // Cancel resize - restore original size
+                win.style.width = `${startWidth}px`;
+                win.style.height = `${startHeight}px`;
+                win.style.left = `${startLeft}px`;
+                win.style.top = `${startTop}px`;
+                cleanup();
+            } else if (e.key === 'Enter') {
+                // Confirm resize
+                cleanup();
+            }
+        };
+        
+        const cleanup = () => {
+            document.removeEventListener('mousemove', mousemove);
+            document.removeEventListener('mousedown', mousedown);
+            document.removeEventListener('mouseup', mouseup);
+            document.removeEventListener('keydown', keydown);
+            document.body.classList.remove('resize-mode-active');
+            win.classList.remove('resize-mode');
+            screenContent.style.cursor = '';
+        };
+        
+        document.addEventListener('mousemove', mousemove);
+        document.addEventListener('mousedown', mousedown);
+        document.addEventListener('mouseup', mouseup);
+        document.addEventListener('keydown', keydown);
+    }
+
     openProgramGroup(groupId) {
         const windowId = `${groupId}-window`;
         const win = document.getElementById(windowId);
@@ -6293,7 +6614,8 @@ Address: 123 Main St</textarea>
                     'sound-recorder': { icon: 'soundrec-icon', label: 'Sound Recorder' },
                     'cardfile': { icon: 'cardfile-icon', label: 'Cardfile' },
                     'recorder': { icon: 'recorder-icon', label: 'Recorder' },
-                    'object-packager': { icon: 'packager-icon', label: 'Object Packager' }
+                    'object-packager': { icon: 'packager-icon', label: 'Object Packager' },
+                    'photo-gallery': { icon: 'gallery-icon', label: 'Photo Gallery' }
                 };
                 app = accessoryIcons[appName] || { icon: 'mini-window-icon', label: appName };
             } else {

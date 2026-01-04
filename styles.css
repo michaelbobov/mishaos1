@@ -9,24 +9,31 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    /* Improve text rendering when scaled */
+    text-rendering: geometricPrecision;
 }
 
 body {
     overflow: hidden;
     height: 100vh;
+    width: 100vw;
+    margin: 0;
+    padding: 0;
     background: #000;
     font-family: 'W95FA', 'Courier New', monospace;
     font-size: 12px;
     -webkit-font-smoothing: none;
     -moz-osx-font-smoothing: grayscale;
     font-smooth: never;
+    position: relative;
 }
 
 :root {
-    --screen-width: 34.5vw;
-    --screen-height: 52vh;
-    --screen-top: 18vh;
-    --screen-left: calc(50vw + 26px);
+    /* Screen dimensions - based on 1920x1080 design */
+    --screen-width: 710px;   /* wider */
+    --screen-height: 530px;  /* slightly taller */
+    --screen-top: 215px;     /* adjusted */
+    --screen-left: 988px;    /* 2px to the right */
     
     /* Retro OS Colors */
     --win-bg: #C0C0C0;
@@ -40,14 +47,20 @@ body {
 }
 
 .room-background {
-    width: 100vw;
-    height: 100vh;
+    width: 1920px;
+    height: 1080px;
     position: relative;
     overflow: visible; /* Changed to visible so hotspot can be seen outside viewport */
     background-image: url('assets/monitor.png');
     background-size: cover;
     background-position: center;
     transition: background-image 0.5s ease;
+    transform-origin: top left;
+    /* Improve text rendering when scaled */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
 }
 
 /* Year-specific themes - ready for different monitor images */
@@ -120,21 +133,22 @@ body {
     position: absolute;
     left: 50%;
     top: 50%;
-    transform: translate(-50%, -50%) scaleX(-1) rotate(-2deg);
-    font-family: 'Comic Sans MS', 'Marker Felt', 'Brush Script MT', cursive, sans-serif;
-    font-size: 18px;
-    color: #333;
+    transform: translate(-50%, -50%) scaleX(-1) rotate(-3deg);
+    font-family: 'Segoe Script', 'Bradley Hand', 'Brush Script MT', cursive;
+    font-size: 20px;
+    color: #000;
     z-index: 200; /* Higher than clickable area (100) to be on top */
     pointer-events: auto; /* Enable clicking */
-    font-style: italic;
-    letter-spacing: 1px;
-    opacity: 0.85;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-weight: 400;
+    letter-spacing: 0.5px;
     text-decoration: none;
     cursor: pointer;
     display: block;
     padding: 10px; /* Add padding to make clickable area larger */
     margin: -10px; /* Offset padding to keep visual position */
+    /* Keep text crisp - no blur effects */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 
@@ -160,11 +174,11 @@ body {
 #vhs-hotspot {
     position: absolute !important;
     /* Positioned over the VHS deck at bottom-right of monitor.png */
-    /* Uses vw/vh units to scale with the monitor background image */
-    right: 0vw !important;
-    bottom: 6vh !important;
-    width: calc(22vw + 5px) !important;
-    height: calc(9vw - 5px) !important;
+    /* Fixed pixel values based on 1920x1080 design */
+    right: 0px !important;
+    bottom: 65px !important;
+    width: 427px !important;   /* 22% of 1920 + 5px */
+    height: 168px !important;  /* 9% of 1920 - 5px */
     border: none !important;
     background: transparent !important;
     background-color: transparent !important;
@@ -852,7 +866,7 @@ body {
 }
 
 .group-icon-label {
-    font-size: 11px;
+    font-size: 13px;
     text-align: center;
     color: var(--win-text);
     line-height: 1.2;
@@ -919,57 +933,160 @@ body {
     height: 85%;
 }
 
+/* Window Resize Handles */
+.resize-handle {
+    position: absolute;
+    background: transparent;
+    z-index: 1000;
+}
+
+.resize-n {
+    top: -3px;
+    left: 10px;
+    right: 10px;
+    height: 6px;
+    cursor: n-resize;
+}
+
+.resize-s {
+    bottom: -3px;
+    left: 10px;
+    right: 10px;
+    height: 6px;
+    cursor: s-resize;
+}
+
+.resize-e {
+    top: 10px;
+    right: -3px;
+    bottom: 10px;
+    width: 6px;
+    cursor: e-resize;
+}
+
+.resize-w {
+    top: 10px;
+    left: -3px;
+    bottom: 10px;
+    width: 6px;
+    cursor: w-resize;
+}
+
+.resize-ne {
+    top: -3px;
+    right: -3px;
+    width: 12px;
+    height: 12px;
+    cursor: ne-resize;
+}
+
+.resize-nw {
+    top: -3px;
+    left: -3px;
+    width: 12px;
+    height: 12px;
+    cursor: nw-resize;
+}
+
+.resize-se {
+    bottom: -3px;
+    right: -3px;
+    width: 12px;
+    height: 12px;
+    cursor: se-resize;
+}
+
+.resize-sw {
+    bottom: -3px;
+    left: -3px;
+    width: 12px;
+    height: 12px;
+    cursor: sw-resize;
+}
+
+.resizable {
+    /* Window has resize handles enabled */
+    min-width: 150px;
+    min-height: 100px;
+}
+
+/* Resize mode - when Size is clicked from menu */
+.resize-mode {
+    outline: 2px dashed var(--win-titlebar) !important;
+    outline-offset: -2px;
+}
+
+.resize-mode-active .screen-content {
+    user-select: none;
+}
+
+.resize-mode-active * {
+    cursor: inherit !important;
+}
+
 /* Window Content */
 .window-content {
     flex: 1;
     background: var(--win-bg);
     padding: 4px;
     overflow: auto;
+    overflow-y: scroll; /* Always show scrollbar */
     border: 1px inset var(--win-bg);
     position: relative;
     z-index: 1;
     min-height: 0;
 }
 
+/* Force scrollbar to always be visible (override macOS auto-hide) */
+.window-content::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 16px !important;
+    height: 16px !important;
+}
+
 /* ===== Retro Windows 95/98 Style Scrollbars ===== */
 
 /* Webkit browsers (Chrome, Edge, Safari) */
 ::-webkit-scrollbar {
-    width: 17px !important;
-    height: 17px !important;
-    background-color: #c0c0c0 !important;
+    width: 16px !important;
+    height: 16px !important;
+    background: repeating-conic-gradient(#c0c0c0 0% 25%, #fff 0% 50%) 50% / 2px 2px !important;
 }
 
 ::-webkit-scrollbar-track {
-    background-color: #c0c0c0 !important;
-    border-left: 1px solid #808080 !important;
+    background: repeating-conic-gradient(#c0c0c0 0% 25%, #fff 0% 50%) 50% / 2px 2px !important;
+    border: 1px solid #808080 !important;
 }
 
 ::-webkit-scrollbar-thumb {
     background-color: #c0c0c0 !important;
-    border: 1px solid !important;
-    border-color: #ffffff #404040 #404040 #ffffff !important;
+    border: 2px solid !important;
+    border-color: #ffffff #000000 #000000 #ffffff !important;
     box-shadow: inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 #808080 !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #d4d4d4 !important;
 }
 
 ::-webkit-scrollbar-thumb:active {
     background-color: #c0c0c0 !important;
-    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    border-color: #000000 #ffffff #ffffff #000000 !important;
     box-shadow: inset -1px -1px 0 #dfdfdf, inset 1px 1px 0 #808080 !important;
 }
 
 ::-webkit-scrollbar-button {
     background-color: #c0c0c0 !important;
-    border: 1px solid !important;
-    border-color: #ffffff #404040 #404040 #ffffff !important;
+    border: 2px solid !important;
+    border-color: #ffffff #000000 #000000 #ffffff !important;
     box-shadow: inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 #808080 !important;
     display: block !important;
-    width: 17px !important;
-    height: 17px !important;
+    width: 16px !important;
+    height: 16px !important;
 }
 
 ::-webkit-scrollbar-button:active {
-    border-color: #808080 #dfdfdf #dfdfdf #808080 !important;
+    border-color: #000000 #ffffff #ffffff #000000 !important;
     box-shadow: inset -1px -1px 0 #dfdfdf, inset 1px 1px 0 #808080 !important;
 }
 
@@ -1063,7 +1180,7 @@ body {
 }
 
 .program-icon-label {
-    font-size: 11px;
+    font-size: 13px;
     text-align: center;
     color: var(--win-text);
     line-height: 1.2;
@@ -3228,11 +3345,157 @@ body.move-mode-active * {
     font-size: 12px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    :root {
-        --screen-width: 85%;
-        --screen-height: 65%;
-        --screen-top: 15%;
-    }
+/* Responsive scaling is handled via JavaScript transform */
+/* The entire .room-background is scaled proportionally to fit any viewport */
+
+/* ===== Photo Gallery Application ===== */
+
+.gallery-icon {
+    background: linear-gradient(135deg, #4a90d9 0%, #2d5aa0 100%);
+    border: 1px solid #404040;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gallery-icon::before {
+    content: '';
+    width: 20px;
+    height: 16px;
+    background: #fff;
+    border: 2px solid #000;
+    position: relative;
+}
+
+.gallery-icon::after {
+    content: '🏔️';
+    position: absolute;
+    font-size: 10px;
+    top: 8px;
+    left: 8px;
+}
+
+.gallery-menu-bar {
+    display: flex;
+    gap: 16px;
+    padding: 2px 8px;
+    background: var(--win-bg);
+    border-bottom: 1px solid var(--win-border-dark);
+    font-size: 12px;
+}
+
+.gallery-content {
+    display: flex;
+    height: 100%;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.gallery-sidebar {
+    width: 100px;
+    background: var(--win-white);
+    border-right: 2px inset var(--win-bg);
+    padding: 4px;
+    overflow-y: auto;
+}
+
+.gallery-folder {
+    padding: 4px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gallery-folder:hover {
+    background: rgba(0, 0, 128, 0.1);
+}
+
+.gallery-folder.selected {
+    background: var(--win-selected);
+    color: white;
+}
+
+.gallery-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    min-width: 0;
+}
+
+.gallery-viewer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: #1a1a1a;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.gallery-photo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    /* Retro pixelated effect */
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    /* Slight color reduction for retro feel */
+    filter: contrast(1.1) saturate(0.85) sepia(0.15);
+    border: 3px solid #808080;
+    box-shadow: 
+        inset 0 0 20px rgba(0, 0, 0, 0.3),
+        0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.gallery-thumbnails {
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    background: var(--win-bg);
+    border-top: 2px solid var(--win-border-dark);
+    overflow-x: auto;
+    min-height: 60px;
+}
+
+.gallery-thumb {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    border: 2px solid var(--win-border-dark);
+    cursor: pointer;
+    overflow: hidden;
+    background: #000;
+}
+
+.gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+    filter: contrast(1.1) saturate(0.8);
+}
+
+.gallery-thumb:hover {
+    border-color: var(--win-titlebar);
+}
+
+.gallery-thumb.selected {
+    border: 2px solid var(--win-titlebar);
+    box-shadow: 0 0 0 1px var(--win-titlebar);
+}
+
+.gallery-info {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: var(--win-bg);
+    border-top: 1px solid var(--win-border-light);
+    font-size: 11px;
+    color: var(--win-text);
 }

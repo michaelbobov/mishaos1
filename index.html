@@ -10,7 +10,7 @@
     <div class="room-background">
         <div class="sticky-note-wrapper">
             <div class="sticky-note-clickable-area"></div>
-            <a href="https://www.michaelbobov.com/" target="_blank" class="sticky-note-text">portfolio</a>
+            <a href="https://www.michaelbobov.com/" class="sticky-note-text">portfolio</a>
             <img
                 class="sticky-note sticky-note-flat"
                 src="assets/stickynote.png"
@@ -106,6 +106,11 @@
                             <div class="program-icon" data-app="readme" style="position: absolute; top: 8px; left: 8px;">
                                 <div class="app-icon readme-icon"></div>
                                 <div class="program-icon-label">Read Me</div>
+                            </div>
+                            <!-- Photo Gallery icon directly in Program Manager -->
+                            <div class="program-icon" data-app="photo-gallery" style="position: absolute; top: 8px; left: 88px;">
+                                <div class="app-icon gallery-icon"></div>
+                                <div class="program-icon-label">Photo Gallery</div>
                             </div>
                             
                             <!-- Program Groups shown as icons at bottom -->
@@ -283,6 +288,10 @@
                                         <div class="app-icon cardfile-icon"></div>
                                         <div class="program-icon-label">Cardfile</div>
                                     </div>
+                                    <div class="program-icon" data-app="photo-gallery">
+                                        <div class="app-icon gallery-icon"></div>
+                                        <div class="program-icon-label">Photo Gallery</div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -458,11 +467,11 @@
                             </div>
                         </div>
                         <div class="window-content">
-                            <div class="readme-text-content" style="padding: 16px; font-family: Tahoma, sans-serif; font-size: 12px; line-height: 1.6; color: var(--win-text); overflow-y: scroll; height: 100%;">
+                            <div class="readme-text-content" style="padding: 16px; font-family: Tahoma, sans-serif; font-size: 14px; line-height: 1.6; color: var(--win-text);">
                                 <p style="margin-bottom: 12px; font-style: italic;">
                                     Oh, glad you found this little easter egg!
                                 </p>
-                                <h2 style="margin-bottom: 12px; font-size: 14px; font-weight: bold;">About Me</h2>
+                                <h2 style="margin-bottom: 12px; font-size: 16px; font-weight: bold;">About Me</h2>
                                 <p style="margin-bottom: 12px;">
                                     This space is my playground—a digital time capsule that merges vintage computer systems with my own creative vision. I built this portfolio to feel nostalgic yet personal, a place where you can get a sense of who I am while wandering through the eras of retro computing.
                                 </p>
@@ -479,11 +488,47 @@
                         </div>
                     </div>
 
+                    <!-- Photo Gallery Application Window -->
+                    <div class="application-window window" id="photo-gallery-app" style="display: none;">
+                        <div class="window-titlebar">
+                            <div class="system-menu">─</div>
+                            <span class="window-title">Photo Gallery - Travels</span>
+                            <div class="window-controls">
+                                <button class="window-btn">▼</button>
+                                <button class="window-btn">▲</button>
+                            </div>
+                        </div>
+                        <div class="gallery-menu-bar">
+                            <span class="menu-item"><u>F</u>ile</span>
+                            <span class="menu-item"><u>V</u>iew</span>
+                            <span class="menu-item"><u>H</u>elp</span>
+                        </div>
+                        <div class="window-content gallery-content">
+                            <div class="gallery-sidebar">
+                                <div class="gallery-folder selected" data-folder="travels">📁 Travels</div>
+                            </div>
+                            <div class="gallery-main">
+                                <div class="gallery-viewer">
+                                    <img src="assets/canada1.jpg" alt="Travel photo" class="gallery-photo" id="gallery-current-photo">
+                                </div>
+                                <div class="gallery-thumbnails" id="gallery-thumbnails">
+                                    <div class="gallery-thumb selected" data-src="assets/canada1.jpg">
+                                        <img src="assets/canada1.jpg" alt="Canada">
+                                    </div>
+                                </div>
+                                <div class="gallery-info">
+                                    <span id="gallery-photo-name">canada1.jpg</span>
+                                    <span id="gallery-photo-count">1 of 1</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- System Menu Dropdown (shared) -->
                     <div class="system-menu-dropdown" id="system-menu-dropdown" style="display: none;">
                         <div class="system-menu-item disabled"><u>R</u>estore</div>
                         <div class="system-menu-item disabled"><u>M</u>ove</div>
-                        <div class="system-menu-item"><u>S</u>ize</div>
+                        <div class="system-menu-item" data-action="size"><u>S</u>ize</div>
                         <div class="system-menu-item" data-action="minimize">Minimize</div>
                         <div class="system-menu-item" data-action="maximize">Maximize</div>
                         <div class="system-menu-separator"></div>
